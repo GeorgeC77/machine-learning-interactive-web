@@ -23,11 +23,16 @@ export default function MarginIntuitionPage() {
   const [w2, setW2] = useState(1.0);
   const [b, setB] = useState(-4.0);
 
+  const norm = Math.sqrt(w1 * w1 + w2 * w2);
+  // w = 0 时没有定义决策边界，需跳过间隔计算
+  const isDegenerate = norm < 1e-6;
+
   // Signed geometric margin for point (x, y)
   const signedValue = (x: number, y: number) =>
-    (w1 * x + w2 * y + b) / Math.sqrt(w1 * w1 + w2 * w2);
+    (w1 * x + w2 * y + b) / norm;
 
   const { minMargin, supportVectors } = useMemo(() => {
+    if (isDegenerate) return { minMargin: 0, supportVectors: [] as number[] };
     let min = Infinity;
     const sv: number[] = [];
     POINTS.forEach((p, i) => {
@@ -41,10 +46,10 @@ export default function MarginIntuitionPage() {
       }
     });
     return { minMargin: min, supportVectors: sv };
-  }, [w1, w2, b]);
+  }, [w1, w2, b, isDegenerate]);
 
   // Check if all points are correctly classified
-  const allCorrect = POINTS.every((p) => p.label * signedValue(p.x, p.y) > 0);
+  const allCorrect = !isDegenerate && POINTS.every((p) => p.label * signedValue(p.x, p.y) > 0);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
@@ -69,6 +74,7 @@ export default function MarginIntuitionPage() {
           <h2 className="text-2xl font-bold text-gray-900">函数间隔与几何间隔</h2>
         </div>
         <p className="text-gray-700 mb-4">
+          本章改用标签约定 <KaTeX math={String.raw`y \in \{-1, +1\}`} />（与逻辑回归章节的 {'{0, 1}'} 不同），这样"预测正确 ⟺ y 与 wᵀx+b 同号"可以写成简洁的乘积形式。
           对于分类器 <KaTeX math={String.raw`h_{w,b}(x) = w^T x + b`} />，样本 <KaTeX math={String.raw`(x^{(i)}, y^{(i)})`} /> 的函数间隔定义为：
         </p>
 
@@ -117,6 +123,7 @@ export default function MarginIntuitionPage() {
           minMargin={minMargin}
           supportVectors={supportVectors}
           allCorrect={allCorrect}
+          isDegenerate={isDegenerate}
         />
       </section>
 
@@ -135,7 +142,7 @@ export default function MarginIntuitionPage() {
               display
             />
           }
-          description="这里 γ 是几何间隔。该问题等价于在约束条件下最小化 ||w||²，是一个凸二次规划问题。"
+          description="这里 γ 是几何间隔。利用 w、b 的缩放自由度令最小函数间隔等于 1，则几何间隔 γ = 1/‖w‖，于是最大化 γ 等价于最小化 ½‖w‖²（约束 y⁽ⁱ⁾(wᵀx⁽ⁱ⁾+b) ≥ 1）——后者是凸二次规划问题。"
         />
 
         <div className={`mt-4 rounded-lg p-4 border ${allCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
@@ -155,15 +162,15 @@ export default function MarginIntuitionPage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>函数间隔随参数缩放变化，几何间隔才是真实的距离。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>SVM 的目标是最大化最小几何间隔。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>只有距离边界最近的点（支持向量）决定最终的决策边界。</span>
           </li>
         </ul>
@@ -182,6 +189,7 @@ function SVMDemo({
   minMargin,
   supportVectors,
   allCorrect,
+  isDegenerate,
 }: {
   w1: number;
   w2: number;
@@ -192,6 +200,7 @@ function SVMDemo({
   minMargin: number;
   supportVectors: number[];
   allCorrect: boolean;
+  isDegenerate: boolean;
 }) {
   const width = 560;
   const height = 400;
@@ -209,25 +218,26 @@ function SVMDemo({
 
   // Decision boundary: w1*x + w2*y + b = 0  =>  y = -(w1*x + b) / w2
   const decisionPoints: { x: number; y: number }[] = [];
-  if (Math.abs(w2) > 1e-6) {
+  const marginPos: { x: number; y: number }[] = [];
+  const marginNeg: { x: number; y: number }[] = [];
+  // Margin boundaries: distance = minMargin
+  const marginOffset = minMargin * norm;
+  if (!isDegenerate && Math.abs(w2) > 1e-6) {
     for (let x = xMin; x <= xMax; x += 0.1) {
       const y = -(w1 * x + b) / w2;
       if (y >= yMin && y <= yMax) decisionPoints.push({ x, y });
-    }
-  }
-
-  // Margin boundaries: distance = minMargin
-  const marginOffset = minMargin * norm;
-  const marginPos: { x: number; y: number }[] = [];
-  const marginNeg: { x: number; y: number }[] = [];
-  if (Math.abs(w2) > 1e-6) {
-    for (let x = xMin; x <= xMax; x += 0.1) {
       const yPos = -(w1 * x + b - marginOffset) / w2;
       const yNeg = -(w1 * x + b + marginOffset) / w2;
       if (yPos >= yMin && yPos <= yMax) marginPos.push({ x, y: yPos });
       if (yNeg >= yMin && yNeg <= yMax) marginNeg.push({ x, y: yNeg });
     }
   }
+
+  // w2 ≈ 0 时边界为竖直线 x = -b/w1，间隔线也是竖直线
+  const isVertical = !isDegenerate && Math.abs(w2) <= 1e-6;
+  const verticalX = isVertical ? -b / w1 : null;
+  const verticalMarginA = isVertical ? (marginOffset - b) / w1 : null;
+  const verticalMarginB = isVertical ? (-marginOffset - b) / w1 : null;
 
   const pathD = decisionPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`).join(' ');
   const pathPos = marginPos.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`).join(' ');
@@ -284,13 +294,22 @@ function SVMDemo({
         {/* margin boundaries (only shown when all points are correctly classified) */}
         {allCorrect && pathPos && <path d={pathPos} fill="none" stroke="#93c5fd" strokeWidth={2} strokeDasharray="6,4" />}
         {allCorrect && pathNeg && <path d={pathNeg} fill="none" stroke="#93c5fd" strokeWidth={2} strokeDasharray="6,4" />}
+        {allCorrect && verticalMarginA !== null && verticalMarginA >= xMin && verticalMarginA <= xMax && (
+          <line x1={xScale(verticalMarginA)} y1={yScale(yMin)} x2={xScale(verticalMarginA)} y2={yScale(yMax)} stroke="#93c5fd" strokeWidth={2} strokeDasharray="6,4" />
+        )}
+        {allCorrect && verticalMarginB !== null && verticalMarginB >= xMin && verticalMarginB <= xMax && (
+          <line x1={xScale(verticalMarginB)} y1={yScale(yMin)} x2={xScale(verticalMarginB)} y2={yScale(yMax)} stroke="#93c5fd" strokeWidth={2} strokeDasharray="6,4" />
+        )}
 
         {/* decision boundary */}
         {pathD && <path d={pathD} fill="none" stroke="#2563eb" strokeWidth={3} />}
+        {verticalX !== null && verticalX >= xMin && verticalX <= xMax && (
+          <line x1={xScale(verticalX)} y1={yScale(yMin)} x2={xScale(verticalX)} y2={yScale(yMax)} stroke="#2563eb" strokeWidth={3} />
+        )}
 
         {/* points */}
         {POINTS.map((p, i) => {
-          const isSV = supportVectors.includes(i);
+          const isSV = allCorrect && supportVectors.includes(i);
           const isMisclassified = p.label * signedValue(p.x, p.y) <= 0;
           return (
             <g key={i}>
@@ -313,11 +332,17 @@ function SVMDemo({
         })}
       </svg>
 
+      {isDegenerate && (
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          当前 w₁ = w₂ = 0，没有定义决策边界，请调整 w₁ 或 w₂。
+        </div>
+      )}
+
       <div className="grid md:grid-cols-3 gap-4 text-center">
         <div className="bg-white rounded-lg p-3 border border-gray-200">
           <p className="text-xs text-gray-500">最小几何间隔</p>
           <p className={`text-xl font-mono font-bold ${allCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {minMargin.toFixed(3)}
+            {isDegenerate ? '—' : minMargin.toFixed(3)}
           </p>
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-200">

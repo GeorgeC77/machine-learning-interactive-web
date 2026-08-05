@@ -69,22 +69,22 @@ export default function SVMTheoryPage() {
           title="SVM 对偶问题"
           formula={
             <KaTeX
-              math={String.raw`\max_{\alpha} \; \sum_{i=1}^{m} \alpha_i - \frac{1}{2} \sum_{i,j=1}^{m} y^{(i)} y^{(j)} \alpha_i \alpha_j \langle x^{(i)}, x^{(j)} \rangle`}
+              math={String.raw`\max_{\alpha} \; \sum_{i=1}^{m} \alpha_i - \frac{1}{2} \sum_{i,j=1}^{m} y^{(i)} y^{(j)} \alpha_i \alpha_j \langle x^{(i)}, x^{(j)} \rangle \quad \text{s.t.} \quad 0 \le \alpha_i \le C, \; \sum_{i=1}^{m} \alpha_i y^{(i)} = 0`}
               display
             />
           }
-          description="约束条件：0 ≤ α_i ≤ C，且 Σ α_i y^(i) = 0。"
+          description="硬间隔是 C = ∞ 的特例；对偶形式只含样本内积，是核技巧的入口。"
         />
 
         <FormulaCard
-          title="决策函数"
+          title="权重与决策函数"
           formula={
             <KaTeX
-              math={String.raw`h_{w,b}(x) = \sum_{i=1}^{m} \alpha_i y^{(i)} \langle x^{(i)}, x \rangle + b`}
+              math={String.raw`\begin{aligned} w &= \sum_{i=1}^{m} \alpha_i y^{(i)} x^{(i)} \\ h_{w,b}(x) &= \sum_{i=1}^{m} \alpha_i y^{(i)} \langle x^{(i)}, x \rangle + b \end{aligned}`}
               display
             />
           }
-          description="只有 α_i > 0 的样本才是支持向量。在软间隔 SVM 中，0 < α_i < C 的点通常位于间隔边界上，α_i = C 的点往往是间隔内或被误分类的样本；它们都可能影响最终决策边界。"
+          description="w 是训练样本的线性组合，只有 α_i > 0 的样本才是支持向量。在软间隔 SVM 中，0 < α_i < C 的点通常位于间隔边界上，α_i = C 的点往往是间隔内或被误分类的样本；它们都可能影响最终决策边界。"
         />
       </section>
 
@@ -99,7 +99,7 @@ export default function SVMTheoryPage() {
           title="核 SVM 决策函数"
           formula={
             <KaTeX
-              math={String.raw`h(x) = \sum_{i=1}^{m} \alpha_i y^{(i)} K(x^{(i)}, x) + b`}
+              math={String.raw`h_{w,b}(x) = \sum_{i=1}^{m} \alpha_i y^{(i)} K(x^{(i)}, x) + b`}
               display
             />
           }
@@ -126,10 +126,21 @@ export default function SVMTheoryPage() {
         <p className="text-gray-700 mb-4">
           SMO（Sequential Minimal Optimization）是求解 SVM 对偶问题的高效算法。
           它每次只优化两个拉格朗日乘子 <KaTeX math={String.raw`\alpha_i`} /> 和 <KaTeX math={String.raw`\alpha_j`} />，
-          而将其他乘子固定。
+          而将其他乘子固定。之所以必须成对优化，是因为约束 <KaTeX math={String.raw`\sum_i \alpha_i y^{(i)} = 0`} /> 使任何单个乘子都无法独立变动。
         </p>
 
-        <div className="bg-violet-50 rounded-lg p-4 border border-violet-200">
+        <FormulaCard
+          title="KKT 条件（互补松弛）"
+          formula={
+            <KaTeX
+              math={String.raw`\alpha_i = 0 \Rightarrow y^{(i)}(w^T x^{(i)} + b) \ge 1; \quad 0 < \alpha_i < C \Rightarrow y^{(i)}(w^T x^{(i)} + b) = 1; \quad \alpha_i = C \Rightarrow y^{(i)}(w^T x^{(i)} + b) \le 1`}
+              display
+            />
+          }
+          description="互补松弛把乘子取值与样本位置对应起来：间隔外 α_i = 0，间隔边界上（支持向量）0 < α_i < C，间隔内或被误分类 α_i = C。"
+        />
+
+        <div className="bg-violet-50 rounded-lg p-4 border border-violet-200 mt-4">
           <h3 className="font-semibold text-violet-800 mb-2">SMO 的核心步骤</h3>
           <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700">
             <li>选择一对违反 KKT 条件的乘子 α_i 和 α_j。</li>
@@ -148,19 +159,19 @@ export default function SVMTheoryPage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>SVM 原始问题是带约束的凸二次规划问题。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>对偶问题只涉及样本内积，便于引入核函数。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>软间隔参数 C 控制间隔宽度与误分类惩罚之间的权衡。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>SMO 算法通过每次优化两个乘子来高效求解对偶问题。</span>
           </li>
         </ul>
@@ -226,8 +237,9 @@ function SoftMarginDemo() {
     const y = boundaryShift - x;
     if (y >= yMin && y <= yMax) boundaryPoints.push({ x, y });
 
-    const yPos = boundaryShift - x + margin;
-    const yNeg = boundaryShift - x - margin;
+    // 边界法向为 (1,1)/√2：几何间隔 m 对应截距偏移 ±m√2（即 x+y = s ± m√2）
+    const yPos = boundaryShift - x + margin * Math.SQRT2;
+    const yNeg = boundaryShift - x - margin * Math.SQRT2;
     if (yPos >= yMin && yPos <= yMax) marginPos.push({ x, y: yPos });
     if (yNeg >= yMin && yNeg <= yMax) marginNeg.push({ x, y: yNeg });
   }
