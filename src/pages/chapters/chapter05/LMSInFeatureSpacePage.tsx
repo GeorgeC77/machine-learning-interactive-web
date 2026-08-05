@@ -33,11 +33,11 @@ export default function LMSInFeatureSpacePage() {
           title="特征空间中的假设函数"
           formula={
             <KaTeX
-              math={String.raw`h_\theta(x) = \theta^T \phi(x) = \sum_{j=1}^{n} \theta_j \phi_j(x)`}
+              math={String.raw`h_\theta(x) = \theta^T \phi(x) = \sum_{j=1}^{p} \theta_j \phi_j(x)`}
               display
             />
           }
-          description="其中 θ 的维度等于特征空间 φ(x) 的维度。"
+          description="其中 p 表示特征空间 φ(x) 的维度——它可以远大于输入维度 n，甚至无穷大。"
         />
 
         <p className="text-gray-700 mb-4">
@@ -99,7 +99,7 @@ export default function LMSInFeatureSpacePage() {
             <h3 className="font-semibold text-rose-800 mb-2">多项式映射的维度爆炸</h3>
             <p className="text-sm text-gray-700">
               d 次多项式映射下，n 维输入的特征维度约为 O(n^d)。
-              例如 100 维输入做三次多项式映射，特征维度可达约 17 万。
+              例如 100 维输入做三次多项式映射，特征维度可达约 17.7 万（C(103,3) = 176851）。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
@@ -120,15 +120,15 @@ export default function LMSInFeatureSpacePage() {
         </h3>
         <ul className="space-y-2 text-sm text-emerald-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>特征空间中的 LMS 与原始空间形式相同，只是把 x 替换为 φ(x)。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>特征映射可能带来维度爆炸问题。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>核技巧可以在不显式计算高维特征的情况下完成训练。</span>
           </li>
         </ul>

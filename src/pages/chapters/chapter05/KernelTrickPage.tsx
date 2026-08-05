@@ -53,7 +53,7 @@ export default function KernelTrickPage() {
               display
             />
           }
-          description="它等价于某个二次特征映射后的内积，但计算量与原始维度相同。"
+          description="它等价于某个二次特征映射后的内积，但计算量为 O(n)（与原始空间内积同阶），而显式构造二次特征需要 O(n²)。"
         />
       </section>
 
@@ -65,6 +65,65 @@ export default function KernelTrickPage() {
           拖动滑块改变向量 x，观察两者结果始终相同。
         </p>
         <KernelComparisonDemo />
+      </section>
+
+      {/* Kernelized LMS derivation */}
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">一个完整例子：核化 LMS</h2>
+        <p className="text-gray-700 mb-4">
+          上一节提到"算法只依赖内积即可核化"。这里以特征空间中的 LMS 为例，完整演示如何把一个算法改写成只依赖核函数的形式。
+          从 <KaTeX math={String.raw`\theta = 0`} /> 出发，LMS 的更新规则为：
+        </p>
+        <FormulaCard
+          title="特征空间中的 LMS 更新"
+          formula={
+            <KaTeX
+              math={String.raw`\theta := \theta + \alpha\bigl(y^{(i)} - \theta^T \phi(x^{(i)})\bigr) \phi(x^{(i)})`}
+              display
+            />
+          }
+          description="每一步都向 θ 加上某个 φ(x⁽ⁱ⁾) 的倍数。"
+        />
+        <p className="text-gray-700 mb-4">
+          关键观察：由于 θ 从 0 开始，且每次更新只加上特征向量的倍数，所以 θ 始终可以写成训练样本特征映射的线性组合。
+          用数学归纳法立即可证——初始时所有系数为 0 成立，每次更新后仍成立：
+        </p>
+        <FormulaCard
+          title="θ 的 β 表示"
+          formula={
+            <KaTeX
+              math={String.raw`\theta = \sum_{i=1}^{m} \beta_i \, \phi\bigl(x^{(i)}\bigr)`}
+              display
+            />
+          }
+          description="维护 m 个系数 β 就等价于维护高维（甚至无限维）向量 θ 本身。"
+        />
+        <p className="text-gray-700 mb-4">
+          把 β 表示代入预测函数与更新规则，所有出现的 φ 都只剩下内积形式，可以用核函数 K 替换：
+        </p>
+        <FormulaCard
+          title="核化预测"
+          formula={
+            <KaTeX
+              math={String.raw`h(x) = \theta^T \phi(x) = \sum_{i=1}^{m} \beta_i \, K\bigl(x^{(i)}, x\bigr)`}
+              display
+            />
+          }
+          description="对新样本预测时，只需要计算它与训练样本之间的核函数值。"
+        />
+        <FormulaCard
+          title="β 的更新规则"
+          formula={
+            <KaTeX
+              math={String.raw`\beta_i := \beta_i + \alpha\Bigl(y^{(i)} - \sum_{j=1}^{m} \beta_j \, K\bigl(x^{(i)}, x^{(j)}\bigr)\Bigr)`}
+              display
+            />
+          }
+          description="其中求和项就是当前模型在 x⁽ⁱ⁾ 上的预测。预先计算一次 Gram 矩阵 K_{ij} = K(x⁽ⁱ⁾, x⁽ʲ⁾)，整个训练过程就不再需要显式的 φ。"
+        />
+        <p className="text-gray-700 mt-4">
+          至此，整个 LMS 算法——训练与预测——都只通过核函数 K 与数据交互。同样的改写技巧也适用于 SVM 的对偶形式（第六章）和核 PCA。
+        </p>
       </section>
 
       {/* Why it matters */}
@@ -96,15 +155,15 @@ export default function KernelTrickPage() {
         </h3>
         <ul className="space-y-2 text-sm text-violet-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>核函数 K(x, z) 等于特征映射后的内积。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>通过核函数可以隐式使用高维特征空间，避免显式计算 φ(x)。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>核技巧适用于任何只依赖样本内积的算法。</span>
           </li>
         </ul>

@@ -32,7 +32,7 @@ export default function KernelPropertiesPage() {
         </p>
 
         <FormulaCard
-          title="PSD kernel 的有限样本判据"
+          title="有效核函数：定义与判据"
           formula={
             <KaTeX
               math={String.raw`K(x, z) = \phi(x)^T \phi(z)`}
@@ -77,6 +77,11 @@ export default function KernelPropertiesPage() {
             <KaTeX math={String.raw`K(x, z) = p\bigl(K_1(x, z)\bigr)`} display />
             <p className="text-xs text-gray-600 mt-1">其中 p 是系数非负的多项式</p>
           </div>
+          <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
+            <h3 className="font-semibold text-rose-800 mb-2">指数构造</h3>
+            <KaTeX math={String.raw`K(x, z) = \exp\bigl(K_1(x, z)\bigr)`} display />
+            <p className="text-xs text-gray-600 mt-1">由泰勒展开与上述性质推出，是构造高斯核的标准工具</p>
+          </div>
         </div>
       </section>
 
@@ -120,15 +125,15 @@ export default function KernelPropertiesPage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>有效核函数必须对应某个特征映射后的内积；对所有有限样本 Gram 矩阵半正定是有限样本判据。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>核函数对非负线性组合、乘积、缩放等操作封闭。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>线性核、多项式核、RBF 核是最常用的三种核函数。</span>
           </li>
         </ul>

@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 import { Map, TrendingDown, Sparkles, Boxes, ShieldAlert, ArrowRight } from 'lucide-react';
 
 const roadmapItems = [
-  { label: '特征映射', path: '/ch05/feature-mapping', icon: Map, desc: '把数据变换到高维空间', color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  { label: '特征空间中的 LMS', path: '/ch05/lms-in-feature-space', icon: TrendingDown, desc: '在高维空间中使用线性算法', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
-  { label: '核技巧', path: '/ch05/kernel-trick', icon: Sparkles, desc: '隐式计算高维内积', color: 'bg-violet-100 text-violet-700 border-violet-300' },
-  { label: '核函数的性质', path: '/ch05/kernel-properties', icon: Boxes, desc: '有效核函数与常见核函数', color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  { label: '特征映射', path: '/ch05/feature-mapping', icon: Map, desc: '把数据变换到高维空间', color: 'bg-blue-100 text-blue-700', border: 'border-blue-300' },
+  { label: '特征空间中的 LMS', path: '/ch05/lms-in-feature-space', icon: TrendingDown, desc: '在高维空间中使用线性算法', color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-300' },
+  { label: '核技巧', path: '/ch05/kernel-trick', icon: Sparkles, desc: '隐式计算高维内积', color: 'bg-violet-100 text-violet-700', border: 'border-violet-300' },
+  { label: '核函数的性质', path: '/ch05/kernel-properties', icon: Boxes, desc: '有效核函数与常见核函数', color: 'bg-amber-100 text-amber-700', border: 'border-amber-300' },
 ];
 
 export default function OverviewPage() {
@@ -63,7 +63,7 @@ export default function OverviewPage() {
             <Link
               key={item.path}
               to={item.path}
-              className={`group flex flex-col p-5 rounded-xl border ${item.color.replace('bg-', 'border-').split(' ')[2]} bg-white hover:shadow-sm transition-all`}
+              className={`group flex flex-col p-5 rounded-xl border ${item.border} bg-white hover:shadow-sm transition-all`}
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 rounded-lg ${item.color.split(' ')[0]} flex items-center justify-center`}>

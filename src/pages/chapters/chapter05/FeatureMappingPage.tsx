@@ -66,7 +66,7 @@ export default function FeatureMappingPage() {
               display
             />
           }
-          description="通过引入平方项和交叉项，原本线性不可分的数据可能在新空间中变得线性可分。"
+          description="通过引入平方项和交叉项，原本线性不可分的数据可能在新空间中变得线性可分。注意：本章的 φ(x) 表示特征映射，与第四章 GDA 中表示类别先验的 φ 无关。"
         />
       </section>
 
@@ -109,6 +109,9 @@ export default function FeatureMappingPage() {
               把原始特征的所有二次项、三次项加入特征向量。
             </p>
             <KaTeX math={String.raw`\phi(x) = [1, x_1, x_2, x_1^2, x_1 x_2, x_2^2]`} display />
+            <p className="text-xs text-gray-500 mt-2">
+              系数可按核函数约定缩放（例如本章演示使用 [x₁², x₂², √2 x₁x₂]，恰对应 K(x,z) = (xᵀz)²）。
+            </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
             <h3 className="font-semibold text-emerald-800 mb-2">高斯/RBF 映射</h3>
@@ -128,15 +131,15 @@ export default function FeatureMappingPage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>特征映射把原始输入变换到更高维的特征空间。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>在特征空间中，原本线性不可分的数据可能变得线性可分。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>多项式映射是最直观的例子，RBF 映射则更为强大。</span>
           </li>
         </ul>
@@ -179,8 +182,11 @@ function FeatureMappingDemo({
   const handleSvgClick = (e: MouseEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const x = (e.clientX - rect.left - padding) / plotSize;
-    const y = 1 - (e.clientY - rect.top - padding) / plotSize;
+    // 先把 CSS 像素坐标换算到 viewBox 坐标系，再换算到数据坐标
+    const sx = (e.clientX - rect.left) * (width / rect.width);
+    const sy = (e.clientY - rect.top) * (height / rect.height);
+    const x = (sx - padding) / plotSize;
+    const y = 1 - (sy - padding) / plotSize;
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
       setPoints((prev) => [...prev, { x, y, label: addLabel }]);
     }
@@ -217,7 +223,10 @@ function FeatureMappingDemo({
           添加 -1 点
         </button>
         <button
-          onClick={() => setPoints(SAMPLE_DATA)}
+          onClick={() => {
+            setPoints(SAMPLE_DATA);
+            setSelectedPoint(null);
+          }}
           className="px-3 py-1.5 rounded text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
         >
           重置
@@ -291,7 +300,7 @@ function FeatureMappingDemo({
         </svg>
       </div>
 
-      {selectedPoint !== null && (
+      {selectedPoint !== null && selectedPoint < points.length && (
         <div className="md:col-span-2 bg-white rounded-lg p-4 border border-gray-200 text-sm">
           <p className="font-medium text-gray-900 mb-1">选中的点</p>
           <p className="text-gray-700">
