@@ -166,10 +166,12 @@ function drawCostChart(
   dot.setAttribute('stroke-width', '2');
   svg.appendChild(dot);
 
-  // current label
+  // current label（靠近右缘时改到左侧并右对齐，避免超出画布）
   const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  label.setAttribute('x', String(curX + 10));
+  const labelRight = curX > W - PAD.right - 95;
+  label.setAttribute('x', String(labelRight ? curX - 10 : curX + 10));
   label.setAttribute('y', String(curY - 10));
+  if (labelRight) label.setAttribute('text-anchor', 'end');
   label.setAttribute('font-size', '11');
   label.setAttribute('font-weight', '600');
   label.setAttribute('fill', mode === 'log' ? '#1d4ed8' : '#dc2626');
@@ -209,7 +211,7 @@ export default function CostFunctionPage() {
           <TrendingDown className="w-10 h-10 text-emerald-600" />
         </div>
         <div className="text-sm font-medium text-emerald-600 mb-2 tracking-wide uppercase">
-          第二章 · 逻辑回归
+          第二章 · 分类与逻辑回归
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">代价函数</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">

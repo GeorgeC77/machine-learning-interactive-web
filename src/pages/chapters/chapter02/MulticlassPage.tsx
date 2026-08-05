@@ -31,7 +31,7 @@ export default function MulticlassPage() {
       {/* Header */}
       <section className="text-center py-8 bg-white rounded-2xl shadow-sm border border-gray-200">
         <div className="text-sm font-medium text-blue-600 mb-2 tracking-wide uppercase">
-          第二章 · 多分类
+          第二章 · 分类与逻辑回归
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">多分类与 Softmax 回归</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
@@ -179,6 +179,21 @@ export default function MulticlassPage() {
             />
           }
           description="最小化 J(θ) 等价于让模型输出的概率分布尽可能接近真实标签的 one-hot 分布，也等价于多项分布的最大似然估计。"
+        />
+
+        <p className="text-gray-700 mt-4 mb-4">
+          对每个类别的参数向量 <em>θ_k</em> 求梯度，可得到与二分类同样简洁的形式：
+        </p>
+
+        <FormulaCard
+          title="Softmax 代价函数的梯度"
+          formula={
+            <KaTeX
+              math={String.raw`\nabla_{\theta_k} J(\theta) = \frac{1}{m} \sum_{i=1}^{m} \bigl(p(y^{(i)} = k \mid x^{(i)}) - \mathbf{1}\{y^{(i)} = k\}\bigr) \, x^{(i)}`}
+              display
+            />
+          }
+          description="预测概率与 one-hot 标签之差乘以特征向量——这正是二分类梯度 (h_θ(x) − y)x 的多分类推广。"
         />
 
         <div className="mt-6 grid md:grid-cols-2 gap-4">

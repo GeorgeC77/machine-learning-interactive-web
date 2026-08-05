@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import { AlertTriangle, Circle, Mountain, Sparkles, Map, Play, Pause, RotateCcw } from 'lucide-react';
-import KaTeX from '../../../components/KaTeX';
+import KaTeX from '@/components/KaTeX';
 
 // ─── 2D Logistic Regression Dataset ────────────────────────────────────
 type DataPoint = { x1: number; x2: number; y: number };
@@ -276,6 +276,13 @@ export default function GradientDescentPage() {
       .attr('stroke', '#fff')
       .attr('stroke-width', 2);
 
+    // Legend
+    const legend = svg.append('g').attr('transform', `translate(${WIDTH - 120}, 12)`);
+    legend.append('circle').attr('cx', 0).attr('cy', 0).attr('r', 5).attr('fill', '#00b4a6');
+    legend.append('text').attr('x', 12).attr('y', 4).attr('font-size', '12px').attr('fill', '#2d3436').text('y = 1');
+    legend.append('circle').attr('cx', 0).attr('cy', 18).attr('r', 5).attr('fill', '#f08a5d');
+    legend.append('text').attr('x', 12).attr('y', 22).attr('font-size', '12px').attr('fill', '#2d3436').text('y = 0');
+
     // Decision boundary helpers
     const boundaryPoints = (theta: [number, number, number]): [number, number][] | null => {
       const [t0, t1, t2] = theta;
@@ -544,7 +551,7 @@ export default function GradientDescentPage() {
           </h3>
           <p className="text-blue-700 leading-relaxed mb-4">
             想象你站在山顶，蒙着眼睛，目标是走到山谷的最低点。你每步只能感觉脚下哪个方向最陡，然后朝那个方向迈一步。
-            这就是梯度下降！对逻辑回归而言，虽然代价函数从平方误差换成了对数似然，但山坡的形状仍然是凸的；当有限最优解存在或加入正则化时，沿着梯度反方向走就能到达谷底。
+            这就是梯度下降！对逻辑回归而言，虽然代价函数从平方误差换成了负对数似然（对数损失），但山坡的形状仍然是凸的；当有限最优解存在或加入正则化时，沿着梯度反方向走就能到达谷底。
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="bg-white/80 border border-orange-200 rounded-lg p-4">
@@ -670,6 +677,7 @@ export default function GradientDescentPage() {
         <h2 className="text-xl font-semibold mb-3">交互式可视化</h2>
         <p className="text-gray-600 mb-4">
           选择一个优化方案，观察逻辑回归在不同学习率与更新策略下的收敛行为。左侧显示二维数据与决策边界的演变，右侧显示对数损失随迭代步数的变化。
+          注意：本演示数据是线性可分的，因此对数似然没有有限最大值点——边界稳定后参数仍会缓慢增长，这是正常现象，与正文对"可分数据"的说明一致。
         </p>
 
         {/* Preset buttons */}

@@ -36,7 +36,7 @@ function generateData(): DataPoint[] {
     points.push({
       x1: s.x1 + (Math.random() - 0.5) * 0.6,
       x2: s.x2 + (Math.random() - 0.5) * 0.6,
-      y: s.x2 > s.x1 - 1 ? 1 : -1,
+      y: s.x2 > s.x1 + 0.5 ? 1 : -1,
     });
   }
   return points;
@@ -122,19 +122,32 @@ function drawPerceptronChart(
   yLabel.textContent = 'x₂';
   g.appendChild(yLabel);
 
-  if (Math.abs(theta2) > 1e-6) {
-    const x1Start = X_MIN;
-    const x2Start = -(theta0 + theta1 * x1Start) / theta2;
-    const x1End = X_MAX;
-    const x2End = -(theta0 + theta1 * x1End) / theta2;
-
-    if (x2Start >= Y_MIN && x2Start <= Y_MAX && x2End >= Y_MIN && x2End <= Y_MAX) {
+  // 决策边界 θ0 + θ1·x1 + θ2·x2 = 0：把线段裁剪到绘图矩形内，而不是整条丢弃
+  {
+    const candidates: { x: number; y: number }[] = [];
+    if (Math.abs(theta2) > 1e-6) {
+      for (const x of [X_MIN, X_MAX]) {
+        const y = -(theta0 + theta1 * x) / theta2;
+        if (y >= Y_MIN - 1e-9 && y <= Y_MAX + 1e-9) candidates.push({ x, y });
+      }
+    }
+    if (Math.abs(theta1) > 1e-6) {
+      for (const y of [Y_MIN, Y_MAX]) {
+        const x = -(theta0 + theta2 * y) / theta1;
+        if (x >= X_MIN - 1e-9 && x <= X_MAX + 1e-9) candidates.push({ x, y });
+      }
+    }
+    // 去重（角点可能被计算两次）
+    const unique = candidates.filter(
+      (p, i) => candidates.findIndex((q) => Math.abs(q.x - p.x) < 1e-9 && Math.abs(q.y - p.y) < 1e-9) === i,
+    );
+    if (unique.length >= 2) {
       const boundary = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      boundary.setAttribute('x1', String(xScale(x1Start)));
-      boundary.setAttribute('y1', String(yScale(x2Start)));
-      boundary.setAttribute('x2', String(xScale(x1End)));
-      boundary.setAttribute('y2', String(yScale(x2End)));
-      boundary.setAttribute('stroke', '#3a7bd5');
+      boundary.setAttribute('x1', String(xScale(unique[0].x)));
+      boundary.setAttribute('y1', String(yScale(unique[0].y)));
+      boundary.setAttribute('x2', String(xScale(unique[1].x)));
+      boundary.setAttribute('y2', String(yScale(unique[1].y)));
+      boundary.setAttribute('stroke', '#7c3aed');
       boundary.setAttribute('stroke-width', '3');
       g.appendChild(boundary);
     }
@@ -163,6 +176,7 @@ export default function PerceptronPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [stepCount, setStepCount] = useState(0);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
+  const [converged, setConverged] = useState(false);
 
   useEffect(() => {
     if (svgRef.current) {
@@ -179,10 +193,23 @@ export default function PerceptronPage() {
     let index = 0;
 
     const interval = setInterval(() => {
-      if (count >= 100) {
+      // 先检查是否已全部分类正确；是则停止并提示收敛
+      const allCorrect = data.every(
+        (p) => (currentTheta0 + currentTheta1 * p.x1 + currentTheta2 * p.x2 >= 0 ? 1 : -1) === p.y,
+      );
+      if (allCorrect) {
         setIsRunning(false);
-        clearInterval(interval);
+        setConverged(true);
         setHighlightIndex(null);
+        clearInterval(interval);
+        return;
+      }
+
+      if (count >= 200) {
+        // 数据加抖动后理论上可能不可分；加一个安全上限，避免无限运行
+        setIsRunning(false);
+        setHighlightIndex(null);
+        clearInterval(interval);
         return;
       }
 
@@ -214,6 +241,7 @@ export default function PerceptronPage() {
     setTheta2(-0.8);
     setStepCount(0);
     setHighlightIndex(null);
+    setConverged(false);
   };
 
   const chartNode = <svg ref={svgRef} width={WIDTH} height={HEIGHT} className="w-full h-auto" />;
@@ -267,7 +295,10 @@ export default function PerceptronPage() {
       </div>
       <div className="flex gap-3 pt-2">
         <Button
-          onClick={() => setIsRunning(!isRunning)}
+          onClick={() => {
+            if (!isRunning) setConverged(false);
+            setIsRunning(!isRunning);
+          }}
           className="flex-1 bg-blue-600 hover:bg-blue-700"
         >
           {isRunning ? '暂停' : '运行感知机算法'}
@@ -278,8 +309,11 @@ export default function PerceptronPage() {
       </div>
       <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 border border-gray-200">
         <p>已更新步数：<span className="font-semibold text-blue-700">{stepCount}</span></p>
+        {converged && (
+          <p className="mt-1 text-xs font-medium text-emerald-600">已收敛：所有样本分类正确。</p>
+        )}
         <p className="mt-1 text-xs text-gray-500">
-          红色点 = 正类 (+1)，蓝色点 = 负类 (-1)。蓝色线为当前决策边界。
+          红色点 = 正类 (+1)，蓝色点 = 负类 (-1)。紫色线为当前决策边界。
         </p>
       </div>
     </div>
@@ -319,7 +353,7 @@ export default function PerceptronPage() {
                 display
               />
             }
-            description="直接根据 θᵀx 的符号输出类别，不使用概率。"
+            description="注意这里的 g 是符号函数（与本章其他页面的 sigmoid 记号不同）。直接根据 θᵀx 的符号输出类别，不使用概率。"
           />
           <FormulaCard
             title="决策边界"

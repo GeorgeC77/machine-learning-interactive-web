@@ -86,9 +86,10 @@ interface NewtonChartProps {
   newtonHistory: number[];
   gdHistory: number[];
   currentStep: number;
+  thetaStar: number;
 }
 
-function NewtonComparisonChart({ newtonHistory, gdHistory, currentStep }: NewtonChartProps) {
+function NewtonComparisonChart({ newtonHistory, gdHistory, currentStep, thetaStar }: NewtonChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const curveData = useMemo(() => {
@@ -158,7 +159,6 @@ function NewtonComparisonChart({ newtonHistory, gdHistory, currentStep }: Newton
       .text('ℓ(θ)');
 
     // Optimum reference line
-    const thetaStar = newtonHistory[newtonHistory.length - 1] ?? 0;
     g.append('line')
       .attr('x1', xScale(thetaStar))
       .attr('x2', xScale(thetaStar))
@@ -260,7 +260,7 @@ function NewtonComparisonChart({ newtonHistory, gdHistory, currentStep }: Newton
       .attr('font-weight', 'bold')
       .attr('fill', '#1a3a5c')
       .text('对数似然函数 ℓ(θ) 与优化轨迹');
-  }, [curveData, newtonHistory, gdHistory, currentStep]);
+  }, [curveData, newtonHistory, gdHistory, currentStep, thetaStar]);
 
   return <svg ref={svgRef} viewBox="0 0 560 360" className="w-full h-auto" style={{ maxHeight: 360 }} />;
 }
@@ -268,7 +268,7 @@ function NewtonComparisonChart({ newtonHistory, gdHistory, currentStep }: Newton
 /* ------------------------------------------------------------------ */
 /*  Step chart component                                                 */
 /* ------------------------------------------------------------------ */
-function StepChart({ newtonHistory, gdHistory, currentStep }: NewtonChartProps) {
+function StepChart({ newtonHistory, gdHistory, currentStep, thetaStar }: NewtonChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -276,7 +276,6 @@ function StepChart({ newtonHistory, gdHistory, currentStep }: NewtonChartProps) 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
 
-    const thetaStar = newtonHistory[newtonHistory.length - 1] ?? 0;
     const maxStep = Math.max(newtonHistory.length, gdHistory.length) - 1;
     const xScale = d3.scaleLinear().domain([0, Math.max(1, maxStep)]).range([0, WIDTH]);
 
@@ -408,7 +407,7 @@ function StepChart({ newtonHistory, gdHistory, currentStep }: NewtonChartProps) 
       .attr('font-weight', 'bold')
       .attr('fill', '#1a3a5c')
       .text('到最优解的距离随迭代步数的变化');
-  }, [newtonHistory, gdHistory, currentStep]);
+  }, [newtonHistory, gdHistory, currentStep, thetaStar]);
 
   return <svg ref={svgRef} viewBox="0 0 560 360" className="w-full h-auto" style={{ maxHeight: 360 }} />;
 }
@@ -444,8 +443,8 @@ const comparisonRows: ComparisonRow[] = [
   },
   {
     aspect: '每步计算量',
-    newtonText: '需计算并求逆 Hessian，O(n³)',
-    gdText: '只需计算梯度，O(n)',
+    newtonText: '需计算并求逆 Hessian：O(n²m + n³)',
+    gdText: '只需计算梯度：O(nm)',
   },
   {
     aspect: '适用规模',
@@ -463,7 +462,7 @@ const comparisonRows: ComparisonRow[] = [
 /*  main page                                                            */
 /* ------------------------------------------------------------------ */
 export default function NewtonPage() {
-  const [theta0, setTheta0] = useState(-3.5);
+  const [theta0, setTheta0] = useState(0);
   const [gdAlpha, setGdAlpha] = useState(0.25);
   const [maxSteps, setMaxSteps] = useState(12);
   const [currentStep, setCurrentStep] = useState(0);
@@ -471,6 +470,12 @@ export default function NewtonPage() {
   const [speed, setSpeed] = useState(1);
   const animRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+
+  // 独立计算最优解真值（从 0 出发充分收敛），不依赖演示轨迹的最后一点
+  const thetaStar = useMemo(() => {
+    const hist = runNewton(0, 50);
+    return hist[hist.length - 1];
+  }, []);
 
   const newtonHistory = useMemo(() => runNewton(theta0, maxSteps), [theta0, maxSteps]);
   const gdHistory = useMemo(() => runGradientAscent(theta0, gdAlpha, maxSteps), [theta0, gdAlpha, maxSteps]);
@@ -585,7 +590,7 @@ export default function NewtonPage() {
             <>
               其中 <KaTeX math={String.raw`\nabla_{\theta} \ell(\theta)`} /> 是梯度，
               <KaTeX math={String.raw`H`} /> 是 Hessian 矩阵（二阶偏导数矩阵）。
-              在逻辑回归中，<KaTeX math={String.raw`\ell`} /> 是凹函数，Hessian 负定，因此该更新等价于沿着正确的上升方向自动调整步长。
+              在逻辑回归中，<KaTeX math={String.raw`\ell`} /> 是凹函数，Hessian 半负定（设计矩阵满列秩时负定），因此该更新等价于沿着正确的上升方向自动调整步长。
             </>
           }
         />
@@ -645,14 +650,15 @@ export default function NewtonPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mt-4">
           <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            为什么 Hessian 是负定的？
+            为什么 Hessian 是半负定的？
           </h3>
           <p className="text-sm text-blue-800 leading-relaxed">
             因为 <KaTeX math={String.raw`0 < h_\theta(x)(1 - h_\theta(x)) \le \frac{1}{4}`} />，
-            所以对任意非零向量 <KaTeX math={String.raw`v`} /> 都有
+            所以对任意向量 <KaTeX math={String.raw`v`} /> 都有
             <KaTeX math={String.raw`v^T H v = -\sum_i h_i(1-h_i) (v^T x^{(i)})^2 \le 0`} />。
             这说明对数似然函数 <KaTeX math={String.raw`\ell(\theta)`} /> 是凹函数，牛顿法更新
             <KaTeX math={String.raw`\theta - H^{-1}\nabla\ell`} /> 实际上是在向最大值移动。
+            当设计矩阵 X 满列秩且预测概率不饱和时，上述不等式严格成立，H 是负定的。
           </p>
         </div>
       </section>
@@ -746,11 +752,11 @@ export default function NewtonPage() {
       <section className="mb-10">
         <InteractiveDemo title="交互式演示：牛顿法 vs 梯度上升">
           <InteractivePanel
-            hint="调整初始点 θ₀ 和梯度上升学习率 α，观察牛顿法与梯度上升在 1D 逻辑回归对数似然上的收敛轨迹。下图纵轴为 log₁₀|θ − θ*|，下降越快表示收敛越迅速。"
+            hint="调整初始点 θ₀ 和梯度上升学习率 α，观察牛顿法与梯度上升在 1D 逻辑回归对数似然上的收敛轨迹。下图纵轴为 log₁₀|θ − θ*|，下降越快表示收敛越迅速。牛顿法仅在最优点附近保证二次收敛，过远的初始点会因过冲而发散，因此本演示把 θ₀ 限定在收敛域附近（θ* ≈ 0.92）。"
             chart={
               <div className="space-y-4">
-                <NewtonComparisonChart newtonHistory={newtonHistory} gdHistory={gdHistory} currentStep={currentStep} />
-                <StepChart newtonHistory={newtonHistory} gdHistory={gdHistory} currentStep={currentStep} />
+                <NewtonComparisonChart newtonHistory={newtonHistory} gdHistory={gdHistory} currentStep={currentStep} thetaStar={thetaStar} />
+                <StepChart newtonHistory={newtonHistory} gdHistory={gdHistory} currentStep={currentStep} thetaStar={thetaStar} />
               </div>
             }
             controls={
@@ -761,8 +767,8 @@ export default function NewtonPage() {
                   </label>
                   <input
                     type="range"
-                    min={-4.5}
-                    max={4.5}
+                    min={-0.5}
+                    max={1.5}
                     step={0.1}
                     value={theta0}
                     onChange={(e) => {
@@ -874,7 +880,8 @@ export default function NewtonPage() {
                       梯度上升 θ = <span className="font-mono text-med-blue">{currentGdTheta.toFixed(6)}</span>
                     </p>
                     <p className="text-dark-gray">
-                      ℓ(θ*) ≈ <span className="font-mono text-med-blue">{logLikelihood(currentNewtonTheta).toFixed(4)}</span>
+                      θ* ≈ <span className="font-mono text-med-blue">{thetaStar.toFixed(4)}</span>，
+                      ℓ(θ*) ≈ <span className="font-mono text-med-blue">{logLikelihood(thetaStar).toFixed(4)}</span>
                     </p>
                   </div>
                 </div>

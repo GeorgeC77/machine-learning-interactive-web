@@ -28,11 +28,17 @@ function sigmoid(z: number) {
 }
 
 function generateData(): DataPoint[] {
+  // 使用固定种子，保证每次打开页面看到同一批数据，便于复现
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
   const points: DataPoint[] = [];
   // 20 points: class 1 when x > 5 (with a little overlap)
   for (let i = 0; i < 20; i++) {
-    const x = Math.random() * 10; // 0 ~ 10
-    const noise = (Math.random() - 0.5) * 1.5;
+    const x = rand() * 10; // 0 ~ 10
+    const noise = (rand() - 0.5) * 1.5;
     const y = x + noise > 5 ? 1 : 0;
     points.push({ x, y });
   }
@@ -327,7 +333,7 @@ export default function ModelPage() {
       {/* Header */}
       <section className="text-center py-8 bg-white rounded-2xl shadow-sm border border-gray-200">
         <div className="text-sm font-medium text-blue-600 mb-2 tracking-wide uppercase">
-          第二章 · 逻辑回归
+          第二章 · 分类与逻辑回归
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">模型表示</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
@@ -609,7 +615,7 @@ export default function ModelPage() {
               <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-800 font-semibold">
                   当前假设:{' '}
-                  <KaTeX math={`h(x) = g(${theta0.toFixed(1)} + ${theta1.toFixed(1)}x)`} />
+                  <KaTeX math={`h(x) = g(${theta0.toFixed(1)} ${theta1 >= 0 ? '+' : '-'} ${Math.abs(theta1).toFixed(1)}x)`} />
                 </p>
               </div>
 
