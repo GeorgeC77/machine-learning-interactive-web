@@ -155,6 +155,7 @@ export default function ExponentialFamilyPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：改变自然参数 η</h2>
         <p className="text-gray-700 mb-4">
           选择一种分布，拖动 η 滑块，观察概率分布如何变化。
+          演示中的泊松分布同样属于指数族：η = log λ，a(η) = e^η，b(y) = 1/y!——这正是图中 λ = e^η 的由来。
         </p>
 
         <div className="flex flex-wrap gap-2 mb-6">
@@ -206,15 +207,15 @@ export default function ExponentialFamilyPage() {
         </h3>
         <ul className="space-y-2 text-sm text-emerald-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>指数族分布统一了多种常见概率分布的表示形式。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>自然参数 η、充分统计量 T(y)、对数配分函数 a(η) 是三个关键角色。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-emerald-500 mt-1" />
             <span>伯努利分布对应 Sigmoid，高斯分布对应恒等函数，这为 GLM 推导埋下伏笔。</span>
           </li>
         </ul>
@@ -309,7 +310,7 @@ function GaussianPlot({ mu, sigma }: { mu: number; sigma: number }) {
           <g key={x}>
             <line x1={xScale(x)} y1={padding.top + innerH} x2={xScale(x)} y2={padding.top + innerH + 5} stroke="#9ca3af" />
             <text x={xScale(x)} y={padding.top + innerH + 18} textAnchor="middle" fontSize={10} fill="#6b7280">
-              {x.toFixed(0)}
+              {x.toFixed(1)}
             </text>
           </g>
         ))}
@@ -333,14 +334,15 @@ function GaussianPlot({ mu, sigma }: { mu: number; sigma: number }) {
 }
 
 function PoissonPlot({ lambda }: { lambda: number }) {
-  const maxK = 20;
+  // 上界随 λ 自适应（均值 + 5 倍标准差），避免大 λ 时右尾被截断
+  const maxK = Math.max(10, Math.ceil(lambda + 5 * Math.sqrt(lambda)));
   const probs = useMemo(() => {
     const arr: { k: number; p: number }[] = [];
     for (let k = 0; k <= maxK; k++) {
       arr.push({ k, p: (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k) });
     }
     return arr;
-  }, [lambda]);
+  }, [lambda, maxK]);
 
   const visible = probs.filter((d) => d.p > 0.0001);
   const maxP = Math.max(...visible.map((d) => d.p));

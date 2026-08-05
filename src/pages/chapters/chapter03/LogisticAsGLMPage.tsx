@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ShieldAlert, GitBranch, Activity, CheckCircle2, ArrowRight , Circle} from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
+import { Slider } from '@/components/ui/slider';
 
 export default function LogisticAsGLMPage() {
   return (
@@ -23,7 +24,7 @@ export default function LogisticAsGLMPage() {
       {/* Derivation flow */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">GLM 推导流程</h2>
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-7 gap-4">
           <FlowCard
             step={1}
             title="选择分布"
@@ -52,7 +53,7 @@ export default function LogisticAsGLMPage() {
             step={4}
             title="最大似然"
             content="交叉熵"
-            detail={String.raw`\min -\sum y\log h + (1-y)\log(1-h)`}
+            detail={String.raw`\min -\sum\bigl[y\log h + (1-y)\log(1-h)\bigr]`}
             color="amber"
           />
         </div>
@@ -201,15 +202,15 @@ export default function LogisticAsGLMPage() {
         </h3>
         <ul className="space-y-2 text-sm text-rose-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-rose-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-rose-500 mt-1" />
             <span>逻辑回归对应 GLM 中的伯努利分布假设。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-rose-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-rose-500 mt-1" />
             <span>伯努利分布的对数配分函数求导后自然得到 Sigmoid 函数。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-rose-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-rose-500 mt-1" />
             <span>最大似然估计导出交叉熵损失，与第二章完全一致。</span>
           </li>
         </ul>
@@ -219,6 +220,8 @@ export default function LogisticAsGLMPage() {
 }
 
 function SigmoidExplorer() {
+  const [eta, setEta] = useState(0);
+
   const points = useMemo(() => {
     const arr: { x: number; y: number }[] = [];
     for (let x = -6; x <= 6; x += 0.1) {
@@ -241,9 +244,17 @@ function SigmoidExplorer() {
   const yScale = (y: number) => padding.top + innerH - ((y - yMin) / (yMax - yMin)) * innerH;
 
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`).join(' ');
+  const phi = 1 / (1 + Math.exp(-eta));
 
   return (
     <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+      <div className="mb-4">
+        <label className="flex justify-between text-sm text-gray-700 mb-1">
+          <span>自然参数 η（log-odds）</span>
+          <span className="font-mono text-blue-700">η = {eta.toFixed(2)} → φ = {phi.toFixed(3)}</span>
+        </label>
+        <Slider value={[eta]} min={-6} max={6} step={0.05} onValueChange={(v) => setEta(v[0])} />
+      </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" style={{ maxHeight: 300 }}>
         {/* grid */}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => {
@@ -277,6 +288,10 @@ function SigmoidExplorer() {
         <line x1={padding.left} y1={yScale(0.5)} x2={padding.left + innerW} y2={yScale(0.5)} stroke="#9ca3af" strokeWidth={1} strokeDasharray="4,4" />
         {/* curve */}
         <path d={pathD} fill="none" stroke="#e11d48" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        {/* current point marker */}
+        <line x1={xScale(eta)} y1={yScale(0)} x2={xScale(eta)} y2={yScale(phi)} stroke="#1d4ed8" strokeWidth={1.5} strokeDasharray="4,3" />
+        <line x1={padding.left} y1={yScale(phi)} x2={xScale(eta)} y2={yScale(phi)} stroke="#1d4ed8" strokeWidth={1.5} strokeDasharray="4,3" />
+        <circle cx={xScale(eta)} cy={yScale(phi)} r={6} fill="#1d4ed8" stroke="#fff" strokeWidth={2} />
       </svg>
       <div className="text-center text-xs text-gray-500 mt-2">
         当 η = 0 时 φ = 0.5；η 越大，模型越确信 y = 1。

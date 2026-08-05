@@ -29,7 +29,7 @@ export default function BuildingGLMPage() {
           <h2 className="text-2xl font-bold text-gray-900">GLM 的三个假设</h2>
         </div>
         <p className="text-gray-700 mb-6">
-          假设我们有一个训练集，输入为 <KaTeX math={String.raw`x \in \mathbb{R}^n`} />，输出为 <KaTeX math={String.raw`y`} />，参数为 <KaTeX math={String.raw`\theta`} />。
+          假设我们有一个训练集，输入为 <KaTeX math={String.raw`x \in \mathbb{R}^{n+1}`} />（含 x₀ = 1 截距项），输出为 <KaTeX math={String.raw`y`} />，参数为 <KaTeX math={String.raw`\theta`} />。
           GLM 对 <KaTeX math={String.raw`y \mid x; \theta`} /> 做出如下假设：
         </p>
 
@@ -50,7 +50,8 @@ export default function BuildingGLMPage() {
             content={
               <>
                 我们要预测 <KaTeX math={String.raw`h(x) = \mathbb{E}[T(y) \mid x; \theta]`} />。
-                对于普通回归 <KaTeX math={String.raw`T(y) = y`} />；对于 k 类分类 <KaTeX math={String.raw`T(y)`} /> 是 k 维 one-hot 指示向量。
+                对于普通回归 <KaTeX math={String.raw`T(y) = y`} />；对于 k 类分类 <KaTeX math={String.raw`T(y)`} /> 是 one-hot 指示向量
+                （严格地说只需去掉冗余分量的 k−1 维，详见 Softmax 一节）。
               </>
             }
           />
@@ -127,6 +128,8 @@ export default function BuildingGLMPage() {
         <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm text-amber-800">
           <strong>记号说明：</strong>这里沿用部分机器学习课程中的记号，把 <KaTeX math={String.raw`\eta \to \mathrm{E}[y \mid x]`} /> 称为 response function；
           在很多统计学教材中，link function 通常定义为 <KaTeX math={String.raw`g(\mu) = \eta`} />，方向相反，阅读其他资料时请注意记号差异。
+          当连接函数恰好把均值参数映回自然参数（即 <KaTeX math={String.raw`g^{-1}(\mu) = \eta`} />）时，称为<strong>正则连接函数</strong>（canonical link）：
+          高斯→恒等、伯努利→logit、泊松→log 都属于这一类。
         </div>
       </section>
 
@@ -188,7 +191,7 @@ export default function BuildingGLMPage() {
               display
             />
           }
-          description="这个形式与逻辑回归完全一致！这也是 GLM 统一框架的美妙之处。"
+          description="这个形式与逻辑回归完全一致！注意它针对 T(y) = y 的标量情形（回归、二分类）；对 Softmax 多分类，应逐参数写作 ∇_{θ_j}ℓ = Σ(y_j − p_j)x。这也是 GLM 统一框架的美妙之处。"
         />
       </section>
 
@@ -216,15 +219,15 @@ export default function BuildingGLMPage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>GLM 的三个假设把分布选择、预测目标和线性建模联系在一起。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>响应函数 g 是对数配分函数 a(η) 的导数。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" />
             <span>最大似然估计的梯度形式统一为 (y − h)x，便于统一实现和理解。</span>
           </li>
         </ul>
@@ -238,8 +241,8 @@ function ResponseFunctionExplorer({ model }: { model: 'gaussian' | 'bernoulli' |
     gaussian: {
       distribution: '高斯分布',
       modelName: '普通最小二乘 / 线性回归',
-      responseFn: 'g(η) = η',
-      linkFn: 'g⁻¹(μ) = μ',
+      responseFn: "g(\\eta) = \\eta",
+      linkFn: "g^{-1}(\\mu) = \\mu",
       prediction: "h(x) = \\theta^T x",
       color: '#8b5cf6',
       note: '响应函数是恒等函数，预测值可以取任意实数。',
@@ -247,7 +250,7 @@ function ResponseFunctionExplorer({ model }: { model: 'gaussian' | 'bernoulli' |
     bernoulli: {
       distribution: '伯努利分布',
       modelName: '逻辑回归',
-      responseFn: "g(\\theta) = \\frac{1}{1 + e^{-\\theta}}",
+      responseFn: "g(\\eta) = \\frac{1}{1 + e^{-\\eta}}",
       linkFn: "g^{-1}(\\phi) = \\log\\frac{\\phi}{1-\\phi}",
       prediction: "h(x) = \\frac{1}{1 + e^{-\\theta^T x}}",
       color: '#e11d48',
@@ -256,7 +259,7 @@ function ResponseFunctionExplorer({ model }: { model: 'gaussian' | 'bernoulli' |
     poisson: {
       distribution: '泊松分布',
       modelName: '泊松回归',
-      responseFn: 'g(η) = e^η',
+      responseFn: "g(\\eta) = e^{\\eta}",
       linkFn: "g^{-1}(\\lambda) = \\log\\lambda",
       prediction: "h(x) = e^{\\theta^T x}",
       color: '#d97706',
@@ -283,14 +286,14 @@ function ResponseFunctionExplorer({ model }: { model: 'gaussian' | 'bernoulli' |
   const innerH = height - padding.top - padding.bottom;
   const xMin = model === 'poisson' ? -3 : -5;
   const xMax = model === 'poisson' ? 3 : 5;
-  const yMin = 0;
+  const yMin = model === 'gaussian' ? -5 : 0;
   const yMax = model === 'poisson' ? 20 : model === 'gaussian' ? 5 : 1;
 
   const xScale = (x: number) => padding.left + ((x - xMin) / (xMax - xMin)) * innerW;
   const yScale = (y: number) => padding.top + innerH - ((y - yMin) / (yMax - yMin)) * innerH;
 
   const pathD = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(Math.min(p.y, yMax))}`)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(Math.max(yMin, Math.min(p.y, yMax)))}`)
     .join(' ');
 
   return (
@@ -349,7 +352,7 @@ function ResponseFunctionExplorer({ model }: { model: 'gaussian' | 'bernoulli' |
             {[yMin, yMax / 2, yMax].map((y) => (
               <g key={y}>
                 <line x1={padding.left - 5} y1={yScale(y)} x2={padding.left} y2={yScale(y)} stroke="#6b7280" />
-                <text x={padding.left - 8} y={yScale(y) + 3} textAnchor="end" fontSize={10} fill="#4b5563">{y.toFixed(yMax === 20 ? 0 : 1)}</text>
+                <text x={padding.left - 8} y={yScale(y) + 3} textAnchor="end" fontSize={10} fill="#4b5563">{y.toFixed(yMax === 1 ? 1 : 0)}</text>
               </g>
             ))}
             <text x={padding.left + innerW / 2} y={height - 8} textAnchor="middle" fontSize={12} fill="#374151">η（自然参数）</text>

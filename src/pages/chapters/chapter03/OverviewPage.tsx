@@ -63,7 +63,7 @@ export default function OverviewPage() {
           title="GLM 的核心形式"
           formula={
             <KaTeX
-              math={String.raw`p(y; \theta) = b(y) \exp\bigl(\eta^T T(y) - a(\eta)\bigr)`}
+              math={String.raw`p(y; \eta) = b(y) \exp\bigl(\eta^T T(y) - a(\eta)\bigr)`}
               display
             />
           }

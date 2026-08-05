@@ -23,7 +23,7 @@ export default function SoftmaxAsGLMPage() {
       {/* Derivation flow */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">GLM 推导流程</h2>
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-7 gap-4">
           <FlowCard
             step={1}
             title="选择分布"
@@ -103,7 +103,7 @@ export default function SoftmaxAsGLMPage() {
               display
             />
           }
-          description="以第 k 类为参照类别。"
+          description="以第 k 类为参照类别，相当于约定 η_k = 0（即 e^{η_k} = 1）。"
         />
       </section>
 
@@ -122,7 +122,7 @@ export default function SoftmaxAsGLMPage() {
               display
             />
           }
-          description="这就是 Softmax 函数。"
+          description="这就是 Softmax 函数。分母中的 e^{η_k} = 1 正来自上面的参照类别约定；参数存在冗余：所有 θ_j 同减任意向量，预测概率不变，因此也常固定 θ_k = 0。"
         />
 
         <p className="text-gray-700 mb-4">
@@ -183,15 +183,15 @@ export default function SoftmaxAsGLMPage() {
         </h3>
         <ul className="space-y-2 text-sm text-amber-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-amber-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-amber-500 mt-1" />
             <span>Softmax 回归对应 GLM 中的多项分布假设。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-amber-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-amber-500 mt-1" />
             <span>自然参数 ηⱼ 是相对于参照类别的 log-odds。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-amber-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-amber-500 mt-1" />
             <span>Softmax 函数是多项分布的响应函数，把线性得分转换为类别概率。</span>
           </li>
         </ul>

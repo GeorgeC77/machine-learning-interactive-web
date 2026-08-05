@@ -22,7 +22,7 @@ export default function OLSasGLMPage() {
       {/* Derivation flow */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">GLM 推导流程</h2>
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-7 gap-4">
           <FlowCard
             step={1}
             title="选择分布"
@@ -68,10 +68,10 @@ export default function OLSasGLMPage() {
         </p>
 
         <FormulaCard
-          title="高斯分布（指数族形式）"
+          title="高斯分布"
           formula={
             <KaTeX
-              math={String.raw`p(y; \eta) = \frac{1}{\sqrt{2\pi}\sigma} \exp\Bigl(-\frac{1}{2\sigma^2}(y - \mu)^2\Bigr)`}
+              math={String.raw`p(y; \mu) = \frac{1}{\sqrt{2\pi}\sigma} \exp\Bigl(-\frac{1}{2\sigma^2}(y - \mu)^2\Bigr)`}
               display
             />
           }
@@ -181,15 +181,15 @@ export default function OLSasGLMPage() {
         </h3>
         <ul className="space-y-2 text-sm text-violet-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>线性回归对应 GLM 中的高斯分布假设。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>高斯分布的响应函数是恒等函数，因此 h(x) = θᵀx。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-violet-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-violet-500 mt-1" />
             <span>最大似然估计自然导出最小二乘代价函数。</span>
           </li>
         </ul>
