@@ -10,7 +10,7 @@ interface Point2D {
 }
 
 function generateData(n: number, seed: number): Point2D[] {
-  // 生成相关的二维高斯数据：均值为 0，协方差近似 [[2.5, 2], [2, 2.5]]
+  // 生成相关的二维高斯数据：均值为 0，协方差近似 [[2.89, 2.6], [2.6, 2.44]]
   let s = seed;
   const data: Point2D[] = [];
   for (let i = 0; i < n; i++) {

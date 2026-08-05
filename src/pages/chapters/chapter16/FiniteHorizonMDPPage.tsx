@@ -52,7 +52,7 @@ export default function FiniteHorizonMDPPage() {
           description="T 是固定的时间范围，例如 100 步。"
         />
         <p className="text-gray-700 mt-4">
-          由于时间有限，最优策略可能随时间变化，即它是<strong>非平稳</strong>的，记为 π_t(s) <KaTeX math={String.raw`\pi^{(t)}(s)`} />。直观地说，在终点附近与在起点处的最优选择可以不同。
+          由于时间有限，最优策略可能随时间变化，即它是<strong>非平稳</strong>的，记为 π^(t)(s)<KaTeX math={String.raw`\pi^{(t)}(s)`} />。直观地说，在终点附近与在起点处的最优选择可以不同。
         </p>
       </section>
 
@@ -114,9 +114,9 @@ export default function FiniteHorizonMDPPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">反向归纳算法</h2>
         <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-4">
-          <li>对所有状态 <em>s</em>，用终点初始化公式计算 V_T^*(s) <KaTeX math={String.raw`V_T(s)`} />。</li>
-          <li>从 <em>t = T − 1</em> 递减到 <em>0</em>，用反向递推公式计算 V_t^*(s) <KaTeX math={String.raw`V_t(s)`} />。</li>
-          <li>得到的最优策略为 π_t^*(s) <KaTeX math={String.raw`\pi^{(t)}(s) = \arg\max_a \bigl[\cdots\bigr]`} />。</li>
+          <li>对所有状态 <em>s</em>，用终点初始化公式计算 V_T(s)<KaTeX math={String.raw`V_T(s)`} />。</li>
+          <li>从 <em>t = T − 1</em> 递减到 <em>0</em>，用反向递推公式计算 V_t(s)<KaTeX math={String.raw`V_t(s)`} />。</li>
+          <li>得到的最优策略为 π^(t)(s)<KaTeX math={String.raw`\pi^{(t)}(s) = \arg\max_a \bigl[\cdots\bigr]`} />。</li>
         </ol>
         <p className="text-gray-700">
           这与无限时域值迭代不同：值迭代是反复应用 Bellman 算子直到收敛；而有限时域问题只需一次从终点到起点的反向遍历即可得到精确解。
@@ -300,7 +300,7 @@ function FiniteHorizonChainDemo() {
       </div>
 
       <div className="text-sm text-gray-600">
-        每一行代表一个时刻 <em>t</em>，越往下越接近终点。格子数值是 V_t^*(s) <KaTeX math={String.raw`V_t(s)`} />，
+        每一行代表一个时刻 <em>t</em>，越往下越接近终点。格子数值是 V_t(s)<KaTeX math={String.raw`V_t(s)`} />，
         小箭头表示该时刻该状态下的最优动作。红色圆点显示一次按策略执行的随机轨迹。
       </div>
     </div>

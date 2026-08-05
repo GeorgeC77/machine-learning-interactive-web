@@ -49,7 +49,7 @@ export default function SVMTheoryPage() {
           title="软间隔 SVM"
           formula={
             <KaTeX
-              math={String.raw`\min_{w, b, \xi} \; \frac{1}{2} \|w\|^2 + C \sum_{i=1}^{m} \xi_i`}
+              math={String.raw`\min_{w, b, \xi} \; \frac{1}{2} \|w\|^2 + C \sum_{i=1}^{m} \xi_i \quad \text{s.t.} \quad y^{(i)}(w^T x^{(i)} + b) \ge 1 - \xi_i, \; \xi_i \ge 0`}
               display
             />
           }
@@ -195,14 +195,15 @@ function SoftMarginDemo() {
   // Approximate decision boundary for visualization.
   // Boundary: x + y = s(C). Larger C moves boundary toward the outlier.
   const boundaryShift = useMemo(() => {
-    // C = 0  -> boundary ignores outlier: x + y ≈ 3.5
-    // C -> ∞ -> boundary classifies outlier correctly: x + y ≈ 5.3
-    return 3.5 + 1.8 * (1 - Math.exp(-cValue));
+    // C 小 -> 忽略异常点的最大间隔边界：x + y ≈ 5（负类最大 x+y=4，正类最小 x+y=6 的中点）
+    // C 增大 -> 边界向异常点移动：x + y ≈ 6（但异常点仍无法在不误伤正类点 (3,3) 的前提下被正确分类）
+    return 5.0 + 1.0 * (1 - Math.exp(-cValue));
   }, [cValue]);
 
   const margin = useMemo(() => {
     // Wider margin for small C, narrower for large C
-    return 1.5 * Math.exp(-0.5 * cValue) + 0.2;
+    // C 很小时 ≈ 0.7 ≈ (6−5)/√2，与忽略异常点时的几何间隔一致
+    return 0.2 + 0.5 * Math.exp(-0.5 * cValue);
   }, [cValue]);
 
   const width = 520;
@@ -332,7 +333,8 @@ function SoftMarginDemo() {
       </div>
 
       <div className="text-sm text-gray-600">
-        橙色外圈的点是异常点。C 较小时，SVM 忽略异常点以获得更宽的间隔；C 增大时，边界向异常点移动以减少误分类。
+        橙色外圈的点是异常点。C 较小时，边界近似 x+y=5，仅异常点被误分类、间隔较宽；
+        C 增大时，边界向异常点移动、间隔变窄，但异常点仍难以在不误伤正类点 (3,3) 的情况下被正确分类。
         这是用于演示 C 参数影响的简化可视化。
       </div>
     </div>

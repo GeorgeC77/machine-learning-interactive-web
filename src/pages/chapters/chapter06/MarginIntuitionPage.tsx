@@ -131,11 +131,11 @@ export default function MarginIntuitionPage() {
           title="优化目标"
           formula={
             <KaTeX
-              math={String.raw`\max_{w, b} \; \min_i \; \gamma^{(i)} \quad \text{s.t.} \quad y^{(i)}(w^T x^{(i)} + b) \ge \hat{\gamma}`}
+              math={String.raw`\max_{\gamma, w, b} \; \gamma \quad \text{s.t.} \quad y^{(i)}(w^T x^{(i)} + b) \ge \gamma, \; \|w\| = 1`}
               display
             />
           }
-          description="这等价于在约束条件下最小化 ||w||²，是一个凸二次规划问题。"
+          description="这里 γ 是几何间隔。该问题等价于在约束条件下最小化 ||w||²，是一个凸二次规划问题。"
         />
 
         <div className={`mt-4 rounded-lg p-4 border ${allCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>

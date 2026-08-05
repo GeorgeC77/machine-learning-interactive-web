@@ -154,14 +154,14 @@ function ComputationGraphDemo() {
 
   const edges = useMemo(
     () => [
-      { from: 'w' as NodeKey, to: 'z' as NodeKey, label: String.raw`\frac{\partial z}{\partial w} = ${w[0].toFixed(6)}`, showGrad: step >= 4, labelPos: 'above' as const },
+      { from: 'w' as NodeKey, to: 'z' as NodeKey, label: String.raw`\frac{\partial z}{\partial w} = ${x[0].toFixed(6)}`, showGrad: step >= 4, labelPos: 'above' as const },
       { from: 'b' as NodeKey, to: 'z' as NodeKey, label: String.raw`\frac{\partial z}{\partial b} = 1.000000`, showGrad: step >= 4, labelPos: 'below' as const },
       { from: 'x' as NodeKey, to: 'z' as NodeKey, label: String.raw`\frac{\partial z}{\partial x} = ${w[0].toFixed(6)}`, showGrad: step >= 3, labelPos: 'below' as const },
       { from: 'z' as NodeKey, to: 'a' as NodeKey, label: String.raw`\frac{\partial a}{\partial z} = ${da_dz.toFixed(6)}`, showGrad: step >= 2, labelPos: 'above' as const },
       { from: 'a' as NodeKey, to: 'L' as NodeKey, label: String.raw`\frac{\partial L}{\partial a} = ${dL_da.toFixed(6)}`, showGrad: step >= 1, labelPos: 'above' as const },
       { from: 'y' as NodeKey, to: 'L' as NodeKey, label: String.raw`\frac{\partial L}{\partial y} = ${(-dL_da).toFixed(6)}`, showGrad: step >= 1, labelPos: 'below' as const },
     ],
-    [step, w, da_dz, dL_da]
+    [step, w, x, da_dz, dL_da]
   );
 
   function arrowPath(x1: number, y1: number, x2: number, y2: number) {
@@ -657,7 +657,7 @@ function MultiLayerBackpropDemo() {
         {step === 1 && <p className="text-gray-600">从输出开始：先求损失对输出的梯度 ∂L/∂a₂。</p>}
         {step === 2 && <p className="text-gray-600">穿过 Sigmoid：∂L/∂z₂ = ∂L/∂a₂ · ∂a₂/∂z₂，同时可得到 ∂L/∂W⁽²⁾ 与 ∂L/∂b⁽²⁾。</p>}
         {step === 3 && <p className="text-gray-600">传向隐藏层：∂L/∂a₁ = ∂L/∂z₂ · ∂z₂/∂a₁。</p>}
-        {step === 4 && <p className="text-gray-600">穿过 ReLU：∂L/∂z₁ = ∂L/∂a₁ · ∂a₁/∂z₁（ReLU 在负数处导数为 0，梯度消失）。</p>}
+        {step === 4 && <p className="text-gray-600">穿过 ReLU：∂L/∂z₁ = ∂L/∂a₁ · ∂a₁/∂z₁（ReLU 在负数处导数为 0，该神经元的梯度被置零）。</p>}
         {step === 5 && <p className="text-gray-600">到达第一层参数：∂L/∂W⁽¹⁾ = ∂L/∂z₁ · ∂z₁/∂W⁽¹⁾，∂L/∂b⁽¹⁾ = ∂L/∂z₁ · 1。</p>}
       </div>
     </div>

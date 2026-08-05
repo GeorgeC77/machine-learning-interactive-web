@@ -90,7 +90,7 @@ export default function PretrainingAdaptationPage() {
               display
             />
           }
-          description="微调允许模型针对下游任务调整表示，通常在小样本场景下表现更好。"
+          description="微调允许模型针对下游任务调整表示，通常在下游数据较充足时比线性探测取得更好的性能；下游标注极少时，线性探测往往更稳健。"
         />
       </section>
 

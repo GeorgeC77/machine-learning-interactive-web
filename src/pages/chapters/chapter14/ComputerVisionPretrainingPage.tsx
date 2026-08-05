@@ -87,7 +87,7 @@ export default function ComputerVisionPretrainingPage() {
         </ul>
         <p className="text-gray-700 mb-4">
           以 SIMCLR 为例，对于一个大小为 B 的批次，每个样本生成两个增强视图，得到一个 2B 个样本的增强批次。
-          对每个正样本对 (x̂^(i), x̃^(i))，损失函数鼓励它们的表示相似，同时与所有其他 2(B-1) 个负样本不同：
+          对每个正样本对 (x̂^(i), x̃^(i))，损失函数鼓励它们的表示相似，同时与其余样本的增强视图不同（此处为只含 B−1 个负样本的简化形式；完整 SimCLR/NT-Xent 的负样本为 2(B−1) 个）：
         </p>
         <FormulaCard
           title="SIMCLR 损失"

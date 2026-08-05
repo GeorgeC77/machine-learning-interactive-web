@@ -344,11 +344,11 @@ export default function PerceptronPage() {
           title="感知机更新规则"
           formula={
             <KaTeX
-              math={String.raw`\theta := \theta + \alpha \left(y - h_\theta(x)\right) x`}
+              math={String.raw`\theta := \theta + \alpha \, y \, x \quad (\text{仅当预测错误时})`}
               display
             />
           }
-          description="当预测 y=1 但实际 y=-1 时，θ 向 -x 方向调整；反之向 +x 方向调整。"
+          description="预测正确时不更新。正类样本被错分则 θ 向 +x 方向调整，负类样本被错分则向 -x 方向调整。"
         />
         <div className="mt-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-5">
           <div className="flex items-center gap-3 mb-3">
@@ -401,7 +401,7 @@ export default function PerceptronPage() {
               <tr className="bg-gray-50">
                 <td className="border border-gray-200 px-4 py-2 text-gray-700">收敛保证</td>
                 <td className="border border-gray-200 px-4 py-2 text-gray-700">仅当数据线性可分时收敛</td>
-                <td className="border border-gray-200 px-4 py-2 text-gray-700">凸优化，总能收敛</td>
+                <td className="border border-gray-200 px-4 py-2 text-gray-700">凸优化；有限最优解存在时保证收敛</td>
               </tr>
             </tbody>
           </table>

@@ -36,14 +36,14 @@ export default function PolicyGradientPage() {
           title="关键记号"
           formula={
             <KaTeX
-              math={String.raw`\begin{aligned} \pi_\theta(a \mid s) &: \text{随机策略} \\ \tau &= (s_0, a_0, r_0, \dots, s_T) \\ G(\tau) &= \sum_{t=0}^{T-1} \gamma^t r_t \\ J(\theta) &= \mathbb{E}_{\tau \sim \pi_\theta}\bigl[G(\tau)\bigr] \\ \nabla_\theta J(\theta) &= \mathbb{E}_{\tau \sim \pi_\theta}\bigl[G(\tau) \, \nabla_\theta \log p_\theta(\tau)\bigr] \\ G_t &= \sum_{k=t}^{T} \gamma^{k-t} r_k \end{aligned}`}
+              math={String.raw`\begin{aligned} \pi_\theta(a \mid s) &: \text{随机策略} \\ \tau &= (s_0, a_0, r_0, \dots, s_T) \\ G(\tau) &= \sum_{t=0}^{T-1} \gamma^t r_t \\ J(\theta) &= \mathbb{E}_{\tau \sim \pi_\theta}\bigl[G(\tau)\bigr] \\ \nabla_\theta J(\theta) &= \mathbb{E}_{\tau \sim \pi_\theta}\bigl[G(\tau) \, \nabla_\theta \log p_\theta(\tau)\bigr] \\ G_t &= \sum_{k=t}^{T-1} \gamma^{k-t} r_k \end{aligned}`}
               display
             />
           }
           description="r_t 是时刻 t 的即时奖励，γ 是折扣因子；在简化讨论中也可取 γ = 1。"
         />
         <p className="text-gray-700 mt-2 text-sm">
-          {'文本形式：G_t = Σ_{k=t}^{T} γ^{k−t} r_k'}
+          {'文本形式：G_t = Σ_{k=t}^{T−1} γ^{k−t} r_k'}
         </p>
       </section>
 
@@ -142,7 +142,7 @@ export default function PolicyGradientPage() {
               display
             />
           }
-          description="其中 G_t = Σ_{k=t}^{T} γ^{k−t} r_k 表示从 t 时刻起打折后的未来回报。合适的基线能显著降低梯度估计方差。"
+          description="其中 G_t = Σ_{k=t}^{T−1} γ^{k−t} r_k 表示从 t 时刻起打折后的未来回报。合适的基线能显著降低梯度估计方差。"
         />
         <p className="text-gray-700 mt-4">
           注意：基线只能依赖状态，不能依赖当前采样的动作；这样不会改变策略梯度的期望，只会降低方差。

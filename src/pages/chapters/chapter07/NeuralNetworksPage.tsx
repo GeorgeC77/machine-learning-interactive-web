@@ -837,7 +837,7 @@ function LearnedFeaturesDemo() {
           </div>
           <div>
             <label className="flex justify-between text-sm text-gray-700 mb-1">
-              <span>输出层非线性强度</span>
+              <span>输出层权重缩放</span>
               <span className="text-blue-600">{strength[0].toFixed(2)}</span>
             </label>
             <Slider min={0} max={2} step={0.05} value={strength} onValueChange={setStrength} />

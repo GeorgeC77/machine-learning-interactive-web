@@ -213,11 +213,12 @@ function PendulumDemo() {
 }
 
 function PendulumSVG({ title, theta, color }: { title: string; theta: number; color: string }) {
+  // 与正文约定一致：θ=0 表示倒立竖直向上的平衡点，支点在下方
   const cx = 100;
-  const cy = 20;
+  const cy = 110;
   const L = 80;
   const x = cx + L * Math.sin(theta);
-  const y = cy + L * Math.cos(theta);
+  const y = cy - L * Math.cos(theta);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center">
@@ -226,8 +227,8 @@ function PendulumSVG({ title, theta, color }: { title: string; theta: number; co
         <line x1={cx - 40} y1={cy} x2={cx + 40} y2={cy} stroke="#9ca3af" strokeWidth={3} />
         <line x1={cx} y1={cy} x2={x} y2={y} stroke={color} strokeWidth={3} />
         <circle cx={x} cy={y} r={10} fill={color} />
-        <line x1={cx} y1={cy} x2={cx} y2={cy + L} stroke="#e5e7eb" strokeWidth={1} strokeDasharray="4 2" />
-        <text x={cx + 6} y={cy + L / 2} fontSize={10} fill="#9ca3af">θ={theta.toFixed(3)}</text>
+        <line x1={cx} y1={cy} x2={cx} y2={cy - L} stroke="#e5e7eb" strokeWidth={1} strokeDasharray="4 2" />
+        <text x={cx + 6} y={cy - L / 2} fontSize={10} fill="#9ca3af">θ={theta.toFixed(3)}</text>
       </svg>
     </div>
   );

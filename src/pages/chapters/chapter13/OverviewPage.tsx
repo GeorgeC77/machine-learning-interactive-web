@@ -65,7 +65,7 @@ export default function OverviewPage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>ICA 对高斯源不可识别，要求源信号是非高斯的。</span>
+            <span>ICA 要求独立源中至多一个为高斯分布；多于一个高斯源时旋转不确定性使源不可识别。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />

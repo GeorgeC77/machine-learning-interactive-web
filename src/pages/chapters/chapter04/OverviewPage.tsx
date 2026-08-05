@@ -39,7 +39,7 @@ export default function OverviewPage() {
             <h3 className="font-semibold text-blue-800 mb-2">判别式方法</h3>
             <p className="text-sm text-gray-700">
               直接建模决策边界。例如逻辑回归、Softmax 回归。
-              优点：通常需要较少数据就能得到较好的分类边界。
+              优点：直接优化分类目标，数据充足时通常能达到更低的渐近误差、更高的分类准确率。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">

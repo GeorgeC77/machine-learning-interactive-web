@@ -180,7 +180,7 @@ export default function NaiveBayesPage() {
               display
             />
           }
-          description="|V| 是词汇表大小。这样即使某个词未出现，概率也不会为 0。"
+          description="count(x_j, y) 是词 x_j 在类别 y 中出现的次数；count(y) 是类别 y 中所有词的总词数（非文档数）；|V| 是词汇表大小。这样即使某个词未出现，概率也不会为 0。"
         />
       </section>
 

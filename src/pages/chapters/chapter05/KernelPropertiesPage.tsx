@@ -92,7 +92,7 @@ export default function KernelPropertiesPage() {
           <FormulaCard
             title="多项式核"
             formula={<KaTeX math={String.raw`K(x, z) = (x^T z + c)^d`} display />}
-            description="对应 d 次多项式特征映射，c 控制低次项的权重。"
+            description="对应 d 次多项式特征映射，c 控制低次项的权重；通常要求 c ≥ 0 才能保证核矩阵半正定。"
           />
           <FormulaCard
             title="高斯核 / RBF 核"
