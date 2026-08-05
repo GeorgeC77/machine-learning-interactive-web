@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import { Brain, Calculator, ShieldAlert, ArrowRight, Scale } from 'lucide-react';
 
 const roadmapItems = [
-  { label: '生成式 vs 判别式', path: '/ch04/generative-vs-discriminative', icon: Scale, desc: '两种建模思路的本质区别', color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  { label: '高斯判别分析', path: '/ch04/gaussian-discriminant-analysis', icon: Calculator, desc: '假设每类数据服从多元高斯', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
-  { label: '朴素贝叶斯', path: '/ch04/naive-bayes', icon: Brain, desc: '条件独立性假设与文本分类', color: 'bg-violet-100 text-violet-700 border-violet-300' },
+  { label: '生成式 vs 判别式', path: '/ch04/generative-vs-discriminative', icon: Scale, desc: '两种建模思路的本质区别', color: 'bg-blue-100 text-blue-700', border: 'border-blue-300' },
+  { label: '高斯判别分析', path: '/ch04/gaussian-discriminant-analysis', icon: Calculator, desc: '假设每类数据服从多元高斯', color: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-300' },
+  { label: '朴素贝叶斯', path: '/ch04/naive-bayes', icon: Brain, desc: '条件独立性假设与文本分类', color: 'bg-violet-100 text-violet-700', border: 'border-violet-300' },
 ];
 
 export default function OverviewPage() {
@@ -60,7 +60,7 @@ export default function OverviewPage() {
             <Link
               key={item.path}
               to={item.path}
-              className={`group flex flex-col p-5 rounded-xl border ${item.color.replace('bg-', 'border-').split(' ')[2]} bg-white hover:shadow-sm transition-all`}
+              className={`group flex flex-col p-5 rounded-xl border ${item.border} bg-white hover:shadow-sm transition-all`}
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 rounded-lg ${item.color.split(' ')[0]} flex items-center justify-center`}>

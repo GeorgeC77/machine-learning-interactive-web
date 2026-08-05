@@ -44,21 +44,24 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 0);
 }
 
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // 从输入文本中提取词汇表里存在的特征词，并统计出现次数。
-// 这样即使用户输入的是连续中文，也能识别出训练集中的关键词。
+// 采用最长匹配优先（从左到右扫描），避免多字词与其单字成分被重复计数。
 function extractFeatures(text: string, vocab: Set<string>): string[] {
+  const sorted = Array.from(vocab).sort((a, b) => b.length - a.length);
   const features: string[] = [];
-  vocab.forEach((word) => {
-    const regex = new RegExp(escapeRegExp(word), 'g');
-    const matches = text.match(regex);
-    if (matches) {
-      features.push(...matches);
+  let i = 0;
+  while (i < text.length) {
+    let matched = false;
+    for (const word of sorted) {
+      if (text.startsWith(word, i)) {
+        features.push(word);
+        i += word.length;
+        matched = true;
+        break;
+      }
     }
-  });
+    if (!matched) i += 1;
+  }
   return features;
 }
 
@@ -180,7 +183,7 @@ export default function NaiveBayesPage() {
               display
             />
           }
-          description="count(x_j, y) 是词 x_j 在类别 y 中出现的次数；count(y) 是类别 y 中所有词的总词数（非文档数）；|V| 是词汇表大小。这样即使某个词未出现，概率也不会为 0。"
+          description="count(x_j, y) 是词 x_j 在类别 y 中出现的次数；count(y) 是类别 y 中所有词的总词数（非文档数）；|V| 是所有类别共享的并集词表大小。这样即使某个词未出现，概率也不会为 0。"
         />
       </section>
 
@@ -274,7 +277,7 @@ export default function NaiveBayesPage() {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-violet-50 rounded-lg p-4 border border-violet-200">
             <h3 className="font-semibold text-violet-800 mb-2">文本分类</h3>
-            <p className="text-sm text-gray-700">垃圾邮件过滤、情感分析、新闻分类等。词袋特征天然适合条件独立性假设。</p>
+            <p className="text-sm text-gray-700">垃圾邮件过滤、情感分析、新闻分类等。词袋特征通常用条件独立假设近似建模（词频实际并不条件独立，这正是"朴素"所在），实践中效果往往不错。</p>
           </div>
           <div className="bg-violet-50 rounded-lg p-4 border border-violet-200">
             <h3 className="font-semibold text-violet-800 mb-2">小数据集</h3>

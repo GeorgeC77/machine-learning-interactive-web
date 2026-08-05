@@ -73,7 +73,7 @@ export default function GaussianDiscriminantAnalysisPage() {
               display
             />
           }
-          description="其中 θ 与 μ₁ − μ₀ 有关。这解释了为什么 GDA 与逻辑回归在线性可分问题上常常得到相似的决策边界。"
+          description="其中 θ 与 μ₁ − μ₀ 有关。当数据近似满足 GDA 的高斯+共享协方差假设时，GDA 与逻辑回归学出的决策边界通常相近；但参数估计路径不同——GDA 先估计 φ、μ、Σ 再组合出后验，逻辑回归则直接拟合 Sigmoid。"
         />
 
         <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200 mt-4">
@@ -278,7 +278,15 @@ function GDA1DDemo() {
         {boundary !== null && boundary >= xMin && boundary <= xMax && (
           <g>
             <line x1={xScale(boundary)} y1={padding.top} x2={xScale(boundary)} y2={padding.top + innerH} stroke="#6b7280" strokeWidth={2} strokeDasharray="6,4" />
-            <text x={xScale(boundary)} y={padding.top - 6} textAnchor="middle" fontSize={11} fill="#4b5563">决策边界 x = {boundary.toFixed(2)}</text>
+            <text
+              x={xScale(boundary) + (boundary - xMin < 0.15 * (xMax - xMin) ? 6 : xMax - boundary < 0.15 * (xMax - xMin) ? -6 : 0)}
+              y={padding.top - 6}
+              textAnchor={boundary - xMin < 0.15 * (xMax - xMin) ? 'start' : xMax - boundary < 0.15 * (xMax - xMin) ? 'end' : 'middle'}
+              fontSize={11}
+              fill="#4b5563"
+            >
+              决策边界 x = {boundary.toFixed(2)}
+            </text>
           </g>
         )}
       </svg>
