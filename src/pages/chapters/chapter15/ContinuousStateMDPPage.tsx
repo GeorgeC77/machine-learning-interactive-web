@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ShieldAlert, Activity, CheckCircle2 , Circle} from 'lucide-react';
+import { Activity, CheckCircle2, Circle, ShieldAlert } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 import { Slider } from '@/components/ui/slider';
@@ -16,12 +16,12 @@ export default function ContinuousStateMDPPage() {
           很多实际控制问题的状态空间是连续的。本节介绍两种处理连续状态 MDP 的方法：离散化，以及直接使用函数近似表示价值函数。
         </p>
 
-        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" aria-hidden="true" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Activity className="w-6 h-6 text-blue-600" />
+          <Activity className="w-6 h-6 text-blue-600" aria-hidden="true" />
           <h2 className="text-2xl font-bold text-gray-900">离散化</h2>
         </div>
         <p className="text-gray-700 mb-4">
@@ -29,7 +29,8 @@ export default function ContinuousStateMDPPage() {
           当实际系统处于某个连续状态时，先找到它所在的网格，再执行该网格对应的最优动作。
         </p>
         <p className="text-gray-700 mb-4">
-          然而，这种方法把价值函数近似为分段常数函数。如下图所示，对光滑的真实函数来说，分段常数近似既不光滑，也难以在不同网格之间泛化。
+          然而，这种方法通常把价值函数近似为分段常数。下面用一个已知光滑目标的一维教学例子展示分辨率误差；
+          它不是完整的控制环境，而是在隔离观察“状态表示如何限制价值近似”。
         </p>
         <DiscretizationDemo />
       </section>
@@ -70,7 +71,7 @@ export default function ContinuousStateMDPPage() {
               display
             />
           }
-          description="φ(s) 是状态的特征映射。这样无论状态维度多高，价值函数都由参数向量 θ 表示。"
+          description="φ(s) 是状态特征。参数共享允许相近状态泛化，但效果取决于特征、函数容量、训练分布与优化。"
         />
         <p className="text-gray-700 mt-2 text-sm">
           {'文本形式：V_θ(s) = θ^T φ(s)，或更一般地由神经网络 V_θ(s) 表示'}
@@ -110,7 +111,7 @@ export default function ContinuousStateMDPPage() {
               display
             />
           }
-          description="这一步完全等价于标准的回归问题，只是输入是状态 s，标签是 y。"
+          description="这一步在形式上是回归，但标签由旧价值函数自举产生，会随迭代变化，并非固定的独立同分布监督标签。"
         />
         <p className="text-gray-700 mt-2 text-sm">
           {'文本形式：θ_new = argmin_θ Σ_i (V_θ(s_i) − y_i)²'}
@@ -122,20 +123,20 @@ export default function ContinuousStateMDPPage() {
 
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
         <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5" />
+          <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
           小结
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" />
             <span>离散化简单直观，但会遭遇维度灾难，且分段常数近似不够光滑。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" />
             <span>值函数近似用参数化函数直接逼近 V*，避免显式离散化。</span>
           </li>
           <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
+            <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" />
             <span>Fitted value iteration 把 Bellman 更新和监督学习结合在一起。</span>
           </li>
         </ul>
@@ -170,15 +171,11 @@ function DiscretizationDemo() {
 
   // 生成带噪声数据点（使用固定种子，避免每次渲染跳动）
   const dataPoints = useMemo(() => {
-    let s = 12345;
-    const rand = () => {
-      s = (s * 9301 + 49297) % 233280;
-      return s / 233280;
-    };
-    return [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5].map((x) => ({
-      x,
-      y: trueY(x) + (rand() - 0.5) * 0.4,
-    }));
+    return Array.from({ length: 41 }, (_, index) => {
+      const x = 1.05 + (index / 40) * 6.9;
+      const unitNoise = (((index + 12_345) * 9_301 + 49_297) % 233_280) / 233_280;
+      return { x, y: trueY(x) + (unitNoise - 0.5) * 0.4 };
+    });
   }, []);
 
   // 线性回归
@@ -190,16 +187,34 @@ function DiscretizationDemo() {
   const slope = den > 0 ? num / den : 0.5;
   const intercept = my - slope * mx;
 
-  // 离散化（分段常数）近似
+  // 用落入区间的样本均值作为该离散状态的代表值。
   function discretizedY(x: number): number {
     const binWidth = (xMax - xMin) / bins;
     const binIdx = Math.min(bins - 1, Math.floor((x - xMin) / binWidth));
     const x0 = xMin + binIdx * binWidth;
     const x1 = x0 + binWidth;
-    const pts = dataPoints.filter((p) => p.x >= x0 && p.x < x1);
-    if (pts.length === 0) return my;
-    return pts.reduce((s, p) => s + p.y, 0) / pts.length;
+    const pointsInBin = dataPoints.filter((point) =>
+      point.x >= x0 && (binIdx === bins - 1 ? point.x <= x1 : point.x < x1),
+    );
+    const midpoint = xMin + (binIdx + 0.5) * binWidth;
+    return pointsInBin.length > 0
+      ? pointsInBin.reduce((sum, point) => sum + point.y, 0) / pointsInBin.length
+      : trueY(midpoint);
   }
+
+  const evaluationPoints = Array.from({ length: 401 }, (_, index) =>
+    xMin + (index / 400) * (xMax - xMin),
+  );
+  const discreteRmse = Math.sqrt(
+    evaluationPoints.reduce((sum, x) => sum + (discretizedY(x) - trueY(x)) ** 2, 0)
+      / evaluationPoints.length,
+  );
+  const linearRmse = Math.sqrt(
+    evaluationPoints.reduce(
+      (sum, x) => sum + (slope * x + intercept - trueY(x)) ** 2,
+      0,
+    ) / evaluationPoints.length,
+  );
 
   const truePath = Array.from({ length: 200 }, (_, i) => {
     const x = xMin + (i / 199) * (xMax - xMin);
@@ -211,26 +226,43 @@ function DiscretizationDemo() {
     return `${i === 0 ? 'M' : 'L'} ${sx(x)} ${sy(slope * x + intercept)}`;
   }).join(' ');
 
-  const stepPath = Array.from({ length: bins }, (_, i) => {
-    const x0 = xMin + (i / bins) * (xMax - xMin);
-    const x1 = xMin + ((i + 1) / bins) * (xMax - xMin);
-    const y = discretizedY(x0 + 1e-6);
-    const yNext = discretizedY(x1 - 1e-6);
-    const sx0 = sx(x0);
-    const sx1 = sx(x1);
-    const sy0 = sy(y);
-    // 阶梯形状：水平线 + 垂直线
-    return `M ${sx0} ${sy0} L ${sx1} ${sy0} L ${sx1} ${sy(yNext)}`;
-  }).join(' ');
+  const stepCommands = [`M ${sx(xMin)} ${sy(discretizedY(xMin + 1e-6))}`];
+  for (let bin = 0; bin < bins; bin++) {
+    const boundary = xMin + ((bin + 1) / bins) * (xMax - xMin);
+    const currentValue = discretizedY(boundary - 1e-6);
+    stepCommands.push(`L ${sx(boundary)} ${sy(currentValue)}`);
+    if (bin < bins - 1) {
+      const nextValue = discretizedY(boundary + 1e-6);
+      stepCommands.push(`L ${sx(boundary)} ${sy(nextValue)}`);
+    }
+  }
+  const stepPath = stepCommands.join(' ');
 
   return (
     <div className="space-y-4">
       <ControlRow label={`离散区间数: ${bins}`}>
-        <Slider value={[bins]} min={2} max={20} step={1} onValueChange={(v) => setBins(v[0])} />
+        <Slider
+          aria-label="一维状态空间的离散区间数"
+          value={[bins]}
+          min={2}
+          max={20}
+          step={1}
+          onValueChange={([value]) => setBins(value)}
+        />
       </ControlRow>
 
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[360px]" style={{ maxHeight: 300 }}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full min-w-[360px]"
+          style={{ maxHeight: 300 }}
+          role="img"
+          aria-labelledby="continuous-value-title continuous-value-description"
+        >
+          <title id="continuous-value-title">一维连续状态的价值函数近似</title>
+          <desc id="continuous-value-description">
+            比较 {bins} 个区间的分段常数近似、线性函数近似与已知目标价值函数。
+          </desc>
           <rect x={0} y={0} width={width} height={height} fill="#f9fafb" />
           {[2, 3, 4, 5].map((y) => (
             <line key={`hy-${y}`} x1={padding.left} y1={sy(y)} x2={width - padding.right} y2={sy(y)} stroke="#e5e7eb" strokeWidth={1} />
@@ -271,6 +303,17 @@ function DiscretizationDemo() {
         <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-red-500" /> 分段常数离散化</span>
         <span className="flex items-center gap-1"><span className="w-6 h-0.5 border-b-2 border-dashed border-gray-700" /> 真实函数</span>
       </div>
+
+      <div className="grid grid-cols-2 gap-3 text-sm" role="status" aria-live="polite">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <span className="block text-gray-600">分段常数 RMSE</span>
+          <span className="font-mono font-semibold text-red-700">{discreteRmse.toFixed(4)}</span>
+        </div>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <span className="block text-gray-600">线性近似 RMSE</span>
+          <span className="font-mono font-semibold text-emerald-700">{linearRmse.toFixed(4)}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -278,7 +321,7 @@ function DiscretizationDemo() {
 function ControlRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <div className="text-sm font-medium text-gray-700 mb-2">{label}</div>
       {children}
     </div>
   );

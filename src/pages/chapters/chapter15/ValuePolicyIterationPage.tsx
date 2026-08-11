@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { ShieldAlert, Activity, CheckCircle2, RefreshCw, SkipForward , Circle} from 'lucide-react';
-import KaTeX from '@/components/KaTeX';
+import { useMemo, useState } from 'react';
+import { Activity, CheckCircle2, Circle, RefreshCw, ShieldAlert, SkipForward } from 'lucide-react';
 import FormulaCard from '@/components/FormulaCard';
+import KaTeX from '@/components/KaTeX';
+import GridWorldView from './GridWorldView';
 import {
+  bellmanOptimalityResidual,
   defaultConfig,
-  valueIterationStep,
-  policyIterationStep,
   extractPolicy,
-  indexToState,
+  isObstacle,
   isTerminal,
-  ACTIONS,
+  policyIterationStep,
+  valueIterationStep,
 } from './GridWorld';
 
 export default function ValuePolicyIterationPage() {
@@ -21,148 +22,175 @@ export default function ValuePolicyIterationPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">值迭代与策略迭代</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          当转移概率和奖励函数已知时，值迭代与策略迭代是求解有限状态 MDP 的两个经典动态规划算法。
+          当有限 MDP 的转移与奖励已知时，两种动态规划算法都能求得最优策略，
+          但每轮计算量与收敛路径不同。
         </p>
-
-        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2">
+          <ShieldAlert className="w-4 h-4" aria-hidden="true" />
+          本内容仅供教学与非商业学习使用，完整授权说明见页脚。
+        </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Activity className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">值迭代</h2>
+          <Activity className="w-6 h-6 text-blue-600" aria-hidden="true" />
+          <h2 className="text-2xl font-bold text-gray-900">值迭代：反复应用最优算子</h2>
         </div>
         <p className="text-gray-700 mb-4">
-          值迭代从任意初始价值函数（通常为零）出发，反复应用 Bellman 最优算子，使价值函数逐步收敛到最优价值函数 V*：
+          从任意有界初值 V₀ 出发，使用旧一轮的全部值同步计算下一轮：
         </p>
         <FormulaCard
-          title="值迭代更新"
+          title="同步值迭代"
           formula={
             <KaTeX
-              math={String.raw`V(s) := R(s) + \gamma \max_{a \in A} \sum_{s' \in S} P(s'|s,a) V(s')`}
+              math={String.raw`V_{k+1}(s)=\max_a\sum_{s'}P(s'\mid s,a)\left[R(s,a,s')+\gamma V_k(s')\right]`}
               display
             />
           }
-          description="对每一个状态同步或异步地更新，直到 V 收敛。"
+          description="对 γ<1，Bellman 最优算子在最大范数下是 γ-压缩映射，因此 Vₖ 收敛到唯一的 V*。"
         />
         <p className="text-gray-700 mt-4">
-          值迭代不会在经过有限步后精确达到 V*，但可以任意接近。收敛后，通过贪婪策略提取即可得到最优策略。
+          实现时可监控 Bellman 残差 ‖TV−V‖∞。残差很小表示价值接近不动点；
+          若需要严格的价值误差界，还应结合 γ 使用 ‖V−V*‖∞ ≤ ‖TV−V‖∞/(1−γ)。
         </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">策略迭代</h2>
-        <p className="text-gray-700 mb-4">
-          策略迭代交替执行两步：
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">策略迭代：评估与改进</h2>
         <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-4">
-          <li><strong>策略评估：</strong>对当前策略 π，求解线性方程组得到 V^π。</li>
-          <li><strong>策略改进：</strong>根据 V^π 更新策略为贪婪策略。</li>
+          <li><strong>策略评估：</strong>迭代求解 V^π=TπV^π，或直接求解对应线性方程组。</li>
+          <li><strong>策略改进：</strong>对 V^π 做一步贪婪选择，得到不劣于当前策略的新策略。</li>
         </ol>
         <FormulaCard
-          title="策略迭代"
+          title="贪婪策略改进"
           formula={
             <KaTeX
-              math={String.raw`\pi(s) := \arg\max_{a \in A} \sum_{s' \in S} P(s'|s,a) V^\pi(s')`}
+              math={String.raw`\pi_{\mathrm{new}}(s)\in\arg\max_a\sum_{s'}P(s'\mid s,a)\left[R(s,a,s')+\gamma V^\pi(s')\right]`}
               display
             />
           }
-          description="当策略不再改变时，即已找到最优策略。"
+          description="若采用固定的并列动作规则，有限 MDP 的精确策略迭代会在有限次改进后停止于最优策略。"
         />
         <p className="text-gray-700 mt-4">
-          策略迭代往往用较少轮数达到最优策略，但每轮策略评估可能较贵；值迭代每步较便宜、实现简单。在大规模问题中，实际方法常采用近似值迭代、修改策略迭代或基于采样的强化学习算法。
+          策略迭代通常需要较少的外层改进轮数，但每轮完整评估更贵；值迭代单轮便宜。
+          大状态空间中常用截断评估、异步更新、函数近似或采样算法。
         </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：逐步求解</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：比较更新单位</h2>
         <p className="text-gray-700 mb-4">
-          在下面的网格世界中，你可以选择「值迭代」或「策略迭代」模式，点击按钮逐步观察算法如何收敛。
-          绿色格子为目标，红色格子为陷阱，黑色格子为障碍。
-          本章 GridWorld 演示为简化，采用状态奖励 R(s)：目标格奖励 +1，陷阱格奖励 -1，其他格为 0；一般 MDP 中奖励也可写作 R(s,a) 或 R(s,a,s')。
-          在策略迭代模式下，每点击一次会先对当前策略反复执行 Bellman 策略评估，直到数值上近似收敛，再做贪婪策略改进。
+          值迭代的“一步”是一次全状态 Bellman 最优备份；策略迭代的“一轮”包含近似收敛的策略评估与一次策略改进。
+          演示使用进入终止格时支付的转移奖励，并显示统一的最优 Bellman 残差，便于比较而不混淆两种计数。
         </p>
         <IterationDemo />
       </section>
 
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
         <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5" />
+          <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
           小结
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>值迭代通过反复应用 Bellman 最优算子收敛到 V*。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>策略迭代交替进行策略评估和策略改进。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>小状态空间可用精确动态规划；大状态空间通常需要近似动态规划或基于采样的强化学习方法。</span>
-          </li>
+          {[
+            '值迭代依靠 Bellman 最优算子的压缩性收敛到 V*。',
+            '策略迭代交替求 V^π 和执行贪婪改进。',
+            '比较算法时必须区分一次 Bellman sweep、一次策略评估 sweep 和一次策略改进。',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
         </ul>
       </section>
     </div>
   );
 }
 
-function IterationDemo() {
+type Mode = 'value' | 'policy';
+
+function createInitialPolicy() {
   const config = defaultConfig();
-  const [mode, setMode] = useState<'value' | 'policy'>('value');
-  const [V, setV] = useState<number[]>(() => new Array(config.rows * config.cols).fill(0));
-  const [policy, setPolicy] = useState<number[]>(() => new Array(config.rows * config.cols).fill(0));
+  return Array.from({ length: config.rows * config.cols }, (_, state) =>
+    isObstacle(state, config) || isTerminal(state, config) ? -1 : 0,
+  );
+}
+
+function IterationDemo() {
+  const config = useMemo(() => defaultConfig(), []);
+  const [mode, setMode] = useState<Mode>('value');
+  const [values, setValues] = useState<number[]>(() =>
+    new Array(config.rows * config.cols).fill(0),
+  );
+  const [policy, setPolicy] = useState<number[]>(createInitialPolicy);
   const [iterations, setIterations] = useState(0);
+  const [evaluationSweeps, setEvaluationSweeps] = useState(0);
+  const [policyStable, setPolicyStable] = useState(false);
 
-  const displayedPolicy = mode === 'value' ? extractPolicy(V, config) : policy;
-
-  const doStep = () => {
-    if (mode === 'value') {
-      setV((current) => valueIterationStep(current, config));
-    } else {
-      const { newV, newPolicy } = policyIterationStep(V, policy, config);
-      setV(newV);
-      setPolicy(newPolicy);
-    }
-    setIterations((it) => it + 1);
-  };
-
-  const doManySteps = (n: number) => {
-    if (mode === 'value') {
-      setV((current) => {
-        let next = current;
-        for (let i = 0; i < n; i++) {
-          next = valueIterationStep(next, config);
-        }
-        return next;
-      });
-    } else {
-      let nextV = V;
-      let nextPolicy = policy;
-      for (let i = 0; i < n; i++) {
-        const result = policyIterationStep(nextV, nextPolicy, config);
-        nextV = result.newV;
-        nextPolicy = result.newPolicy;
-      }
-      setV(nextV);
-      setPolicy(nextPolicy);
-    }
-    setIterations((it) => it + n);
-  };
+  const displayedPolicy = useMemo(
+    () => (mode === 'value' ? extractPolicy(values, config) : policy),
+    [mode, values, policy, config],
+  );
+  const residual = useMemo(
+    () => bellmanOptimalityResidual(values, config),
+    [values, config],
+  );
 
   const reset = () => {
-    setV(new Array(config.rows * config.cols).fill(0));
-    setPolicy(new Array(config.rows * config.cols).fill(0));
+    setValues(new Array(config.rows * config.cols).fill(0));
+    setPolicy(createInitialPolicy());
     setIterations(0);
+    setEvaluationSweeps(0);
+    setPolicyStable(false);
+  };
+
+  const changeMode = (nextMode: Mode) => {
+    setMode(nextMode);
+    reset();
+  };
+
+  const run = (rounds: number) => {
+    if (mode === 'value') {
+      setValues((current) => {
+        let next = current;
+        for (let round = 0; round < rounds; round++) next = valueIterationStep(next, config);
+        return next;
+      });
+      setIterations((current) => current + rounds);
+      return;
+    }
+
+    let nextValues = values;
+    let nextPolicy = policy;
+    let totalEvaluationSweeps = 0;
+    let stable = false;
+    let completedRounds = 0;
+    for (; completedRounds < rounds; completedRounds++) {
+      const result = policyIterationStep(nextValues, nextPolicy, config);
+      nextValues = result.newV;
+      nextPolicy = result.newPolicy;
+      totalEvaluationSweeps += result.evaluationIterations;
+      stable = result.policyStable;
+      if (stable) {
+        completedRounds += 1;
+        break;
+      }
+    }
+    setValues(nextValues);
+    setPolicy(nextPolicy);
+    setIterations((current) => current + completedRounds);
+    setEvaluationSweeps((current) => current + totalEvaluationSweeps);
+    setPolicyStable(stable);
   };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => { setMode('value'); reset(); }}
+          type="button"
+          aria-pressed={mode === 'value'}
+          onClick={() => changeMode('value')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             mode === 'value' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -170,7 +198,9 @@ function IterationDemo() {
           值迭代
         </button>
         <button
-          onClick={() => { setMode('policy'); reset(); }}
+          type="button"
+          aria-pressed={mode === 'policy'}
+          onClick={() => changeMode('policy')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             mode === 'policy' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -178,101 +208,61 @@ function IterationDemo() {
           策略迭代
         </button>
         <button
-          onClick={doStep}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+          type="button"
+          onClick={() => run(1)}
+          disabled={mode === 'policy' && policyStable}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
         >
-          <SkipForward className="w-4 h-4" />
-          执行一步
+          <SkipForward className="w-4 h-4" aria-hidden="true" />
+          {mode === 'value' ? '执行一次 sweep' : '执行一轮改进'}
         </button>
         <button
-          onClick={() => doManySteps(20)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+          type="button"
+          onClick={() => run(mode === 'value' ? 20 : 10)}
+          disabled={mode === 'policy' && policyStable}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
         >
-          执行 20 步
+          {mode === 'value' ? '连续 20 次' : '运行至稳定（最多 10 轮）'}
         </button>
         <button
+          type="button"
           onClick={reset}
           className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-4 h-4" aria-hidden="true" />
           重置
         </button>
       </div>
 
-      <GridWorld config={config} V={V} policy={displayedPolicy} />
+      <GridWorldView
+        config={config}
+        values={values}
+        policy={displayedPolicy}
+        description={`${mode === 'value' ? '值迭代' : '策略迭代'}已执行 ${iterations} 个外层更新，Bellman 最优残差 ${residual.toExponential(2)}。`}
+      />
 
-      <div className="text-sm text-gray-600">
-        模式: <span className="font-medium text-gray-800">{mode === 'value' ? '值迭代' : '策略迭代'}</span>，
-        已执行步数: <span className="font-mono font-medium text-blue-700">{iterations}</span>
+      <div className="grid sm:grid-cols-3 gap-3 text-sm" role="status" aria-live="polite">
+        <Metric label={mode === 'value' ? 'Bellman sweeps' : '策略改进轮数'} value={String(iterations)} />
+        <Metric label="Bellman 最优残差" value={residual.toExponential(2)} />
+        <Metric
+          label={mode === 'value' ? '当前状态' : '累计评估 sweeps'}
+          value={mode === 'value' ? (residual < 1e-8 ? '数值收敛' : '迭代中') : String(evaluationSweeps)}
+        />
       </div>
+      {mode === 'policy' && policyStable && (
+        <p className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800">
+          策略已稳定；在此有限折扣 MDP 与固定并列规则下，它是最优策略。
+        </p>
+      )}
     </div>
   );
 }
 
-function GridWorld({ config, V, policy }: { config: ReturnType<typeof defaultConfig>; V: number[]; policy: number[] }) {
-  const cellSize = 72;
-  const width = config.cols * cellSize;
-  const height = config.rows * cellSize;
-
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[300px]" style={{ maxHeight: 360 }}>
-        <defs>
-          <marker id="arrow-blue" markerWidth={6} markerHeight={6} refX={5} refY={2.5} orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L0,5 L5,2.5 z" fill="#2563eb" />
-          </marker>
-        </defs>
-        {Array.from({ length: config.rows * config.cols }).map((_, idx) => {
-          const pos = indexToState(idx, config.cols);
-          const x = pos.c * cellSize;
-          const y = pos.r * cellSize;
-          const isGoal = pos.r === config.goal.r && pos.c === config.goal.c;
-          const isTrap = config.traps.some((t) => t.r === pos.r && t.c === pos.c);
-          const isObs = config.obstacles.some((o) => o.r === pos.r && o.c === pos.c);
-          const isStart = pos.r === config.start.r && pos.c === config.start.c;
-
-          let fill = '#ffffff';
-          if (isGoal) fill = '#d1fae5';
-          else if (isTrap) fill = '#fee2e2';
-          else if (isObs) fill = '#374151';
-
-          return (
-            <g key={idx}>
-              <rect x={x} y={y} width={cellSize} height={cellSize} fill={fill} stroke="#d1d5db" strokeWidth={1} />
-              {!isObs && (
-                <text x={x + cellSize / 2} y={y + cellSize / 2 + 4} textAnchor="middle" fontSize={13} fill="#1f2937">
-                  {V[idx].toFixed(2)}
-                </text>
-              )}
-              {isStart && (
-                <text x={x + cellSize / 2} y={y + cellSize - 8} textAnchor="middle" fontSize={10} fill="#2563eb">
-                  起点
-                </text>
-              )}
-              {!isObs && !isTerminal(idx, config) && policy[idx] >= 0 && (
-                <Arrow x={x + cellSize / 2} y={y + cellSize * 0.68} actionIdx={policy[idx]} size={10} />
-              )}
-            </g>
-          );
-        })}
-      </svg>
+    <div className="rounded-lg bg-gray-50 p-3">
+      <span className="block text-gray-600">{label}</span>
+      <span className="font-mono font-semibold text-blue-700">{value}</span>
     </div>
-  );
-}
-
-function Arrow({ x, y, actionIdx, size }: { x: number; y: number; actionIdx: number; size: number }) {
-  const action = ACTIONS[actionIdx];
-  const dx = action.dc * size;
-  const dy = action.dr * size;
-  return (
-    <line
-      x1={x - dx * 0.35}
-      y1={y - dy * 0.35}
-      x2={x + dx * 0.35}
-      y2={y + dy * 0.35}
-      stroke="#2563eb"
-      strokeWidth={2}
-      markerEnd="url(#arrow-blue)"
-    />
   );
 }

@@ -14,12 +14,32 @@ export interface GridWorldConfig {
   gamma: number;
 }
 
+export interface Transition {
+  nextIdx: number;
+  prob: number;
+}
+
+export interface Experience {
+  state: number;
+  action: number;
+  reward: number;
+  nextState: number;
+}
+
+export interface PolicyIterationResult {
+  newV: number[];
+  newPolicy: number[];
+  evaluationIterations: number;
+  residual: number;
+  policyStable: boolean;
+}
+
 export const ACTIONS = [
   { name: '上', dr: -1, dc: 0 },
   { name: '下', dr: 1, dc: 0 },
   { name: '左', dr: 0, dc: -1 },
   { name: '右', dr: 0, dc: 1 },
-];
+] as const;
 
 export function defaultConfig(): GridWorldConfig {
   return {
@@ -48,18 +68,19 @@ export function isSamePos(a: Pos, b: Pos): boolean {
 
 export function isTerminal(idx: number, config: GridWorldConfig): boolean {
   const pos = indexToState(idx, config.cols);
-  return isSamePos(pos, config.goal) || config.traps.some((t) => isSamePos(pos, t));
+  return isSamePos(pos, config.goal) || config.traps.some((trap) => isSamePos(pos, trap));
 }
 
 export function isObstacle(idx: number, config: GridWorldConfig): boolean {
   const pos = indexToState(idx, config.cols);
-  return config.obstacles.some((o) => isSamePos(pos, o));
+  return config.obstacles.some((obstacle) => isSamePos(pos, obstacle));
 }
 
-export function rewardOf(idx: number, config: GridWorldConfig): number {
-  const pos = indexToState(idx, config.cols);
+/** The episodic demo pays reward when the agent enters a terminal state. */
+export function transitionReward(nextIdx: number, config: GridWorldConfig): number {
+  const pos = indexToState(nextIdx, config.cols);
   if (isSamePos(pos, config.goal)) return 1;
-  if (config.traps.some((t) => isSamePos(pos, t))) return -1;
+  if (config.traps.some((trap) => isSamePos(pos, trap))) return -1;
   return 0;
 }
 
@@ -68,7 +89,7 @@ function clampMove(pos: Pos, action: { dr: number; dc: number }, config: GridWor
   if (next.r < 0 || next.r >= config.rows || next.c < 0 || next.c >= config.cols) {
     return pos;
   }
-  if (config.obstacles.some((o) => isSamePos(next, o))) {
+  if (config.obstacles.some((obstacle) => isSamePos(next, obstacle))) {
     return pos;
   }
   return next;
@@ -77,161 +98,171 @@ function clampMove(pos: Pos, action: { dr: number; dc: number }, config: GridWor
 export function getTransitions(
   idx: number,
   actionIdx: number,
-  config: GridWorldConfig
-): { nextIdx: number; prob: number }[] {
+  config: GridWorldConfig,
+): Transition[] {
+  if (isTerminal(idx, config) || isObstacle(idx, config)) return [];
+
   const pos = indexToState(idx, config.cols);
   const intended = ACTIONS[actionIdx];
+  if (!intended) return [];
+
   const result = new Map<number, number>();
+  const addMove = (move: { dr: number; dc: number }, probability: number) => {
+    if (probability <= 0) return;
+    const nextIdx = stateIndex(clampMove(pos, move, config), config.cols);
+    result.set(nextIdx, (result.get(nextIdx) ?? 0) + probability);
+  };
 
-  // 预期方向
-  const intendedPos = clampMove(pos, intended, config);
-  const intendedIdx = stateIndex(intendedPos, config.cols);
-  result.set(intendedIdx, (result.get(intendedIdx) || 0) + 1 - config.slipProb);
+  addMove(intended, 1 - config.slipProb);
+  addMove({ dr: intended.dc, dc: -intended.dr }, config.slipProb / 2);
+  addMove({ dr: -intended.dc, dc: intended.dr }, config.slipProb / 2);
 
-  // 滑向两侧（垂直于预期方向的左右）
-  const leftDr = intended.dc;
-  const leftDc = -intended.dr;
-  const rightDr = -intended.dc;
-  const rightDc = intended.dr;
-  const left = clampMove(pos, { dr: leftDr, dc: leftDc }, config);
-  const right = clampMove(pos, { dr: rightDr, dc: rightDc }, config);
+  return Array.from(result, ([nextIdx, prob]) => ({ nextIdx, prob }));
+}
 
-  const leftIdx = stateIndex(left, config.cols);
-  const rightIdx = stateIndex(right, config.cols);
-
-  if (leftIdx === rightIdx) {
-    result.set(leftIdx, (result.get(leftIdx) || 0) + config.slipProb);
-  } else {
-    result.set(leftIdx, (result.get(leftIdx) || 0) + config.slipProb / 2);
-    result.set(rightIdx, (result.get(rightIdx) || 0) + config.slipProb / 2);
-  }
-
-  return Array.from(result.entries()).map(([nextIdx, prob]) => ({ nextIdx, prob }));
+export function actionValue(
+  state: number,
+  action: number,
+  V: number[],
+  config: GridWorldConfig,
+): number {
+  return getTransitions(state, action, config).reduce(
+    (sum, transition) => sum + transition.prob * (
+      transitionReward(transition.nextIdx, config) + config.gamma * V[transition.nextIdx]
+    ),
+    0,
+  );
 }
 
 export function valueIterationStep(V: number[], config: GridWorldConfig): number[] {
-  const n = config.rows * config.cols;
-  const nextV = new Array(n).fill(0);
-  for (let s = 0; s < n; s++) {
-    if (isObstacle(s, config)) {
-      nextV[s] = 0;
-      continue;
-    }
-    const r = rewardOf(s, config);
-    if (isTerminal(s, config)) {
-      nextV[s] = r;
-      continue;
-    }
-    let best = -Infinity;
-    for (let a = 0; a < ACTIONS.length; a++) {
-      const trans = getTransitions(s, a, config);
-      const q = trans.reduce((sum, t) => sum + t.prob * V[t.nextIdx], 0);
-      if (q > best) best = q;
-    }
-    nextV[s] = r + config.gamma * best;
+  const nStates = config.rows * config.cols;
+  const nextV = new Array(nStates).fill(0);
+
+  for (let state = 0; state < nStates; state++) {
+    if (isObstacle(state, config) || isTerminal(state, config)) continue;
+    nextV[state] = Math.max(...ACTIONS.map((_, action) => actionValue(state, action, V, config)));
   }
   return nextV;
 }
 
 export function extractPolicy(V: number[], config: GridWorldConfig): number[] {
-  const n = config.rows * config.cols;
-  const policy = new Array(n).fill(0);
-  for (let s = 0; s < n; s++) {
-    if (isObstacle(s, config) || isTerminal(s, config)) {
-      policy[s] = -1;
-      continue;
-    }
-    let bestA = 0;
-    let bestQ = -Infinity;
-    for (let a = 0; a < ACTIONS.length; a++) {
-      const trans = getTransitions(s, a, config);
-      const q = trans.reduce((sum, t) => sum + t.prob * V[t.nextIdx], 0);
-      if (q > bestQ) {
-        bestQ = q;
-        bestA = a;
+  const nStates = config.rows * config.cols;
+  const policy = new Array(nStates).fill(-1);
+
+  for (let state = 0; state < nStates; state++) {
+    if (isObstacle(state, config) || isTerminal(state, config)) continue;
+    let bestAction = 0;
+    let bestValue = -Infinity;
+    for (let action = 0; action < ACTIONS.length; action++) {
+      const candidate = actionValue(state, action, V, config);
+      if (candidate > bestValue) {
+        bestValue = candidate;
+        bestAction = action;
       }
     }
-    policy[s] = bestA;
+    policy[state] = bestAction;
   }
   return policy;
 }
 
-export function policyEvaluationStep(V: number[], policy: number[], config: GridWorldConfig): number[] {
-  const n = config.rows * config.cols;
-  const nextV = new Array(n).fill(0);
-  for (let s = 0; s < n; s++) {
-    if (isObstacle(s, config)) {
-      nextV[s] = 0;
-      continue;
-    }
-    const r = rewardOf(s, config);
-    if (isTerminal(s, config)) {
-      nextV[s] = r;
-      continue;
-    }
-    const a = policy[s];
-    const trans = getTransitions(s, a, config);
-    const q = trans.reduce((sum, t) => sum + t.prob * V[t.nextIdx], 0);
-    nextV[s] = r + config.gamma * q;
+export function policyEvaluationStep(
+  V: number[],
+  policy: number[],
+  config: GridWorldConfig,
+): number[] {
+  const nStates = config.rows * config.cols;
+  const nextV = new Array(nStates).fill(0);
+
+  for (let state = 0; state < nStates; state++) {
+    if (isObstacle(state, config) || isTerminal(state, config)) continue;
+    const action = policy[state];
+    nextV[state] = action >= 0 ? actionValue(state, action, V, config) : 0;
   }
   return nextV;
 }
 
-export function simulateTrajectory(
-  policy: number[],
-  config: GridWorldConfig,
-  maxSteps: number,
-  seed: number
-): number[] {
-  let s = stateIndex(config.start, config.cols);
-  const traj = [s];
-  let rand = seed;
-  for (let step = 0; step < maxSteps; step++) {
-    if (isTerminal(s, config)) break;
-    const a = policy[s];
-    const trans = getTransitions(s, a, config);
-    rand = (rand * 9301 + 49297) % 233280;
-    let u = rand / 233280;
-    let cum = 0;
-    let nextS = s;
-    for (const t of trans) {
-      cum += t.prob;
-      if (u <= cum) {
-        nextS = t.nextIdx;
-        break;
-      }
-    }
-    s = nextS;
-    traj.push(s);
-  }
-  return traj;
-}
-
 export function maxAbsDiff(a: number[], b: number[]): number {
   let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    const d = Math.abs(a[i] - b[i]);
-    if (d > diff) diff = d;
+  for (let index = 0; index < a.length; index++) {
+    diff = Math.max(diff, Math.abs(a[index] - b[index]));
   }
   return diff;
+}
+
+export function bellmanOptimalityResidual(V: number[], config: GridWorldConfig): number {
+  return maxAbsDiff(V, valueIterationStep(V, config));
 }
 
 export function policyIterationStep(
   V: number[],
   policy: number[],
   config: GridWorldConfig,
-  tolerance = 1e-3,
-  maxEvalIters = 200,
-): { newV: number[]; newPolicy: number[] } {
+  tolerance = 1e-8,
+  maxEvaluationIterations = 1_000,
+): PolicyIterationResult {
   let currentV = V.slice();
-  for (let i = 0; i < maxEvalIters; i++) {
+  let residual = Infinity;
+  let evaluationIterations = 0;
+
+  for (; evaluationIterations < maxEvaluationIterations; evaluationIterations++) {
     const nextV = policyEvaluationStep(currentV, policy, config);
-    if (maxAbsDiff(nextV, currentV) < tolerance) {
-      currentV = nextV;
+    residual = maxAbsDiff(nextV, currentV);
+    currentV = nextV;
+    if (residual < tolerance) {
+      evaluationIterations += 1;
       break;
     }
-    currentV = nextV;
   }
+
   const newPolicy = extractPolicy(currentV, config);
-  return { newV: currentV, newPolicy };
+  const policyStable = newPolicy.every((action, state) => action === policy[state]);
+  return { newV: currentV, newPolicy, evaluationIterations, residual, policyStable };
+}
+
+export function createSeededRandom(seed: number): () => number {
+  let state = Math.abs(Math.trunc(seed)) % 2_147_483_647;
+  if (state === 0) state = 1;
+  return () => {
+    state = (state * 48_271) % 2_147_483_647;
+    return (state - 1) / 2_147_483_646;
+  };
+}
+
+export function sampleNextState(transitions: Transition[], random: () => number): number {
+  if (transitions.length === 0) throw new Error('Cannot sample from an empty transition list.');
+  const sample = random();
+  let cumulative = 0;
+  for (const transition of transitions) {
+    cumulative += transition.prob;
+    if (sample < cumulative) return transition.nextIdx;
+  }
+  return transitions[transitions.length - 1].nextIdx;
+}
+
+export function simulateEpisode(
+  policy: number[],
+  config: GridWorldConfig,
+  maxSteps: number,
+  seed: number,
+  epsilon = 0,
+): Experience[] {
+  let state = stateIndex(config.start, config.cols);
+  const experience: Experience[] = [];
+  const random = createSeededRandom(seed);
+
+  for (let step = 0; step < maxSteps && !isTerminal(state, config); step++) {
+    const greedyAction = policy[state] >= 0 ? policy[state] : 0;
+    const explore = random() < epsilon;
+    const action = explore ? Math.floor(random() * ACTIONS.length) : greedyAction;
+    const nextState = sampleNextState(getTransitions(state, action, config), random);
+    experience.push({
+      state,
+      action,
+      reward: transitionReward(nextState, config),
+      nextState,
+    });
+    state = nextState;
+  }
+
+  return experience;
 }

@@ -1,6 +1,6 @@
-import { ShieldAlert, Activity, CheckCircle2 , Circle} from 'lucide-react';
-import KaTeX from '@/components/KaTeX';
+import { Activity, CheckCircle2, Circle, ShieldAlert } from 'lucide-react';
 import FormulaCard from '@/components/FormulaCard';
+import KaTeX from '@/components/KaTeX';
 
 export default function ValuePolicyConnectionPage() {
   return (
@@ -11,111 +11,130 @@ export default function ValuePolicyConnectionPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">值迭代与策略迭代的关系</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          值迭代和策略迭代看起来是两种不同的算法，但它们可以通过一个统一的框架联系起来。
-          本节介绍这个联系，并解释何时应该选择哪一种算法。
+          广义策略迭代把“让价值匹配当前策略”和“让策略对当前价值更贪婪”看作两个相互作用的过程；
+          修改策略迭代则给出连接两个经典算法的精确定义。
         </p>
-
-        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2">
+          <ShieldAlert className="w-4 h-4" aria-hidden="true" />
+          本内容仅供教学与非商业学习使用，完整授权说明见页脚。
+        </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Activity className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">统一视角</h2>
+          <Activity className="w-6 h-6 text-blue-600" aria-hidden="true" />
+          <h2 className="text-2xl font-bold text-gray-900">广义策略迭代（GPI）</h2>
         </div>
-        <p className="text-gray-700 mb-4">
-          回顾策略迭代：它交替执行两步——
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <h3 className="font-semibold text-blue-800 mb-2">策略评估方向</h3>
+            <p className="text-sm text-gray-700">
+              固定 π，使 V 朝 V^π 移动，即减小 V 与 TπV 的不一致。
+            </p>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <h3 className="font-semibold text-emerald-800 mb-2">策略改进方向</h3>
+            <p className="text-sm text-gray-700">
+              固定 V，使 π 更偏向对 V 的一步前瞻价值较高的动作。
+            </p>
+          </div>
+        </div>
+        <p className="text-gray-700 mt-4">
+          两个过程不必轮流“完全做完”。只要误差控制得当，它们可以交错、异步甚至同时进行；
+          这也是理解截断策略评估、actor–critic 与许多近似算法的有用视角，但具体收敛保证取决于算法假设。
         </p>
-        <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-4">
-          <li><strong>策略评估：</strong>计算当前策略 π 的价值函数 V^π。</li>
-          <li><strong>策略改进：</strong>根据 V^π 构造贪婪策略。</li>
-        </ol>
-        <p className="text-gray-700 mb-4">
-          在策略迭代的策略评估步骤中，我们通常求解一个线性方程组来精确得到 V^π。但这不是唯一的选择：
-          我们也可以用迭代的 Bellman 更新来近似 V^π，就像在值迭代中那样。
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <h2 className="text-2xl font-bold text-gray-900">修改策略迭代的明确定义</h2>
+        <p className="text-gray-700">
+          为避免“先评估还是先改进”造成歧义，定义如下顺序。给定当前 Vₖ，先选取对它贪婪的策略 πₖ₊₁，
+          再固定该策略执行 m 次 Bellman 期望备份：
         </p>
         <FormulaCard
-          title="迭代式策略评估"
+          title="改进后进行 m 步评估"
           formula={
             <KaTeX
-              math={String.raw`V(s) := \sum_{s'} P(s'|s,\pi(s)) \bigl[ R(s,\pi(s),s') + \gamma V(s') \bigr]`}
+              math={String.raw`\pi_{k+1}\in\operatorname{Greedy}(V_k),\qquad V_{k+1}=(T_{\pi_{k+1}})^m V_k`}
               display
             />
           }
-          description="这里固定使用当前策略 π 的动作，而不是取 max。重复此更新 k 次，就得到 V^π 的一个近似。"
+          description="Tπ 是固定策略的 Bellman 算子；m 控制一次改进之后投入多少评估计算。"
         />
-        <p className="text-gray-700 mt-2 text-sm">
-          {'文本形式：V(s) := Σ_{s\'} P(s\'|s,π(s))[R(s,π(s),s\') + γV(s\')]'}
-        </p>
+        <FormulaCard
+          title="固定策略 Bellman 算子"
+          formula={
+            <KaTeX
+              math={String.raw`(T_\pi V)(s)=\sum_a\pi(a\mid s)\sum_{s'}P(s'\mid s,a)\left[R(s,a,s')+\gamma V(s')\right]`}
+              display
+            />
+          }
+          description="确定性策略时，动作求和只保留 a=π(s) 对应的一项。"
+        />
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Algorithm 6：连接两者的桥梁</h2>
-        <p className="text-gray-700 mb-4">
-          引入一个过程 VE(π, k)：对当前策略 π 执行 k 次 Bellman 更新，然后用得到的价值函数构造贪婪策略。
-          整个算法流程如下：
-        </p>
-        <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-4">
-          <li>随机初始化策略 π。</li>
-          <li>重复直到收敛：
-            <ul className="list-disc list-inside ml-6 mt-1 space-y-1 text-gray-700">
-              <li>V := VE(π, k)（对 π 做 k 次 Bellman 更新）。</li>
-              <li>{"π(s) := argmax_a Σ_{s'} P(s'|s,a)[R(s,a,s') + γV(s')]"} <KaTeX math={String.raw`\pi(s) := \arg\max_a \sum_{s'} P(s'|s,a)\bigl[R(s,a,s') + \gamma V(s')\bigr]`} />（贪婪策略改进）。</li>
-            </ul>
-          </li>
-        </ol>
-        <p className="text-gray-700">
-          这个算法族的行为取决于参数 k：
-        </p>
-      </section>
-
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">两个极端</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">两个端点为何成立</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <h3 className="font-semibold text-blue-800 mb-2">k = 1：值迭代</h3>
+            <h3 className="font-semibold text-blue-800 mb-2">m = 1：值迭代</h3>
             <p className="text-sm text-gray-700">
-              当 k = 1 时，Algorithm 6 每次只做一次策略评估更新，然后就做策略改进。在常见同步 Bellman backup 和贪婪策略提取设定下，k=1 与值迭代非常接近，可视为值迭代的特例或等价实现；
-              两者都在交替执行一次 Bellman 备份和一次贪婪策略提取。
+              因为 πₖ₊₁ 对 Vₖ 贪婪，所以 Tπₖ₊₁Vₖ=T*Vₖ。因此一次评估备份给出
+              Vₖ₊₁=T*Vₖ，恰好是同步值迭代；这个等价性依赖上面明确的“先贪婪、后备份”顺序。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-            <h3 className="font-semibold text-emerald-800 mb-2">k = ∞：策略迭代</h3>
+            <h3 className="font-semibold text-emerald-800 mb-2">m → ∞：精确策略评估</h3>
             <p className="text-sm text-gray-700">
-              当 k 足够大（或用线性系统求解器精确求解）时，策略评估步骤给出精确的 V^π。
-              这就退化为标准的策略迭代，每次策略改进都基于精确的价值函数。
+              对 γ&lt;1，反复应用 Tπ 收敛到 V^π。于是每次贪婪改进之后都把新策略评估到收敛，
+              与标准策略迭代的“评估—改进”循环相同，只是初始策略的产生方式不同。
             </p>
           </div>
         </div>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">何时选择哪种算法？</h2>
-        <ul className="list-disc list-inside space-y-2 text-gray-700">
-          <li><strong>策略迭代：</strong>当状态空间较小，能够高效求解线性方程组时，策略迭代通常收敛更快，并且能在有限步内得到精确最优策略。</li>
-          <li><strong>值迭代：</strong>当状态空间较大但仍可枚举时，值迭代通常比精确策略评估更容易实现；当状态空间非常大或连续时，通常需要近似动态规划或基于采样的强化学习方法。</li>
-          <li><strong>中间选择：</strong>理论上可以在 Algorithm 6 中取某个 k {'>'} 1，但如果 k 次 Bellman 更新不能显著快于 k 次值迭代，那么通常 k = 1 已经很好。</li>
-        </ul>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">计算权衡</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[620px] text-sm text-left border-collapse">
+            <caption className="sr-only">值迭代、修改策略迭代和策略迭代的计算比较</caption>
+            <thead>
+              <tr className="border-b border-gray-200 text-gray-700">
+                <th scope="col" className="p-3">方法</th>
+                <th scope="col" className="p-3">每次改进前的评估</th>
+                <th scope="col" className="p-3">典型优势</th>
+                <th scope="col" className="p-3">主要代价</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700">
+              <tr className="border-b border-gray-100"><th scope="row" className="p-3 font-medium">值迭代</th><td className="p-3">m=1</td><td className="p-3">单轮便宜、实现直接</td><td className="p-3">可能需要更多 sweeps</td></tr>
+              <tr className="border-b border-gray-100"><th scope="row" className="p-3 font-medium">修改策略迭代</th><td className="p-3">1&lt;m&lt;∞</td><td className="p-3">可平衡评估和改进</td><td className="p-3">需要选择截断预算</td></tr>
+              <tr><th scope="row" className="p-3 font-medium">策略迭代</th><td className="p-3">评估到收敛</td><td className="p-3">外层改进轮数通常少</td><td className="p-3">单轮评估较贵</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="text-gray-700 mt-4">
+          实际用时还取决于稀疏结构、线性求解器、异步更新顺序、停止阈值和硬件；不能只用外层“轮数”判断哪种方法更快。
+        </p>
       </section>
 
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
         <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5" />
+          <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
           小结
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>策略评估既可以用线性系统精确求解，也可以用迭代 Bellman 更新近似。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>Algorithm 6 统一了值迭代和策略迭代：k=1 对应值迭代，k=∞ 对应策略迭代。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>小状态空间可用精确动态规划；大状态空间通常需要近似动态规划或基于采样的强化学习方法。</span>
-          </li>
+          {[
+            'GPI 把策略评估和策略改进视为可以交错进行的两个过程。',
+            '在先贪婪后评估的定义下，m=1 精确给出值迭代。',
+            'm 趋于无穷时得到精确策略评估，连接到策略迭代。',
+            '算法比较应同时计算 Bellman sweeps、线性求解成本和达到目标误差的总时间。',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
+          ))}
         </ul>
       </section>
     </div>
