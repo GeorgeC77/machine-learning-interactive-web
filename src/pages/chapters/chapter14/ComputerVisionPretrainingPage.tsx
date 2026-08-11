@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ShieldAlert, Activity, CheckCircle2, SkipForward, RefreshCw , Circle} from 'lucide-react';
+import { ShieldAlert, Activity, CheckCircle2, SkipForward, RefreshCw, Circle, Play } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
+import { Slider } from '@/components/ui/slider';
 
 interface Point2D {
   x: number;
@@ -45,6 +46,95 @@ function augment(p: Point2D, seed: number): Point2D {
   return { x: p.x + dx, y: p.y + dy, label: p.label };
 }
 
+function normalizePoint(p: Point2D): Point2D {
+  const norm = Math.hypot(p.x, p.y);
+  if (norm <= 1e-12) return { x: 1, y: 0, label: p.label };
+  return { x: p.x / norm, y: p.y / norm, label: p.label };
+}
+
+function createContrastiveViews(nPerClass: number, seed: number): Point2D[] {
+  const raw = generateData(nPerClass, seed);
+  const anchors = raw.map(normalizePoint);
+  const positives = raw.map((point, index) => normalizePoint(augment(point, seed * 997 + index + 1)));
+  return [...anchors, ...positives];
+}
+
+function dot(a: Point2D, b: Point2D): number {
+  return a.x * b.x + a.y * b.y;
+}
+
+function positiveIndex(index: number, pairCount: number): number {
+  return index < pairCount ? index + pairCount : index - pairCount;
+}
+
+function contrastiveStats(views: Point2D[], temperature: number): { loss: number; positiveSimilarity: number; negativeSimilarity: number } {
+  const pairCount = views.length / 2;
+  let loss = 0;
+  let positiveSimilarity = 0;
+  let negativeSimilarity = 0;
+  let negativeCount = 0;
+  for (let i = 0; i < views.length; i++) {
+    const positive = positiveIndex(i, pairCount);
+    const logits = views.map((view, index) => index === i ? -Infinity : dot(views[i], view) / temperature);
+    const maximum = Math.max(...logits);
+    const logNormalizer = maximum + Math.log(logits.reduce(
+      (sum, value) => sum + (Number.isFinite(value) ? Math.exp(value - maximum) : 0),
+      0,
+    ));
+    loss += -logits[positive] + logNormalizer;
+    positiveSimilarity += dot(views[i], views[positive]);
+    for (let j = 0; j < views.length; j++) {
+      if (j === i || j === positive) continue;
+      negativeSimilarity += dot(views[i], views[j]);
+      negativeCount += 1;
+    }
+  }
+  return {
+    loss: loss / views.length,
+    positiveSimilarity: positiveSimilarity / views.length,
+    negativeSimilarity: negativeSimilarity / negativeCount,
+  };
+}
+
+function contrastiveStep(views: Point2D[], temperature: number, learningRate = 0.2): Point2D[] {
+  const count = views.length;
+  const pairCount = count / 2;
+  const gradients = views.map(() => ({ x: 0, y: 0 }));
+  const scale = 1 / (count * temperature);
+
+  for (let i = 0; i < count; i++) {
+    const positive = positiveIndex(i, pairCount);
+    gradients[i].x -= views[positive].x * scale;
+    gradients[i].y -= views[positive].y * scale;
+    gradients[positive].x -= views[i].x * scale;
+    gradients[positive].y -= views[i].y * scale;
+
+    const logits = views.map((view, index) => index === i ? -Infinity : dot(views[i], view) / temperature);
+    const maximum = Math.max(...logits);
+    const weights = logits.map((value) => Number.isFinite(value) ? Math.exp(value - maximum) : 0);
+    const normalizer = weights.reduce((sum, value) => sum + value, 0);
+    for (let j = 0; j < count; j++) {
+      if (j === i) continue;
+      const probabilityScale = (weights[j] / normalizer) * scale;
+      gradients[i].x += probabilityScale * views[j].x;
+      gradients[i].y += probabilityScale * views[j].y;
+      gradients[j].x += probabilityScale * views[i].x;
+      gradients[j].y += probabilityScale * views[i].y;
+    }
+  }
+
+  return views.map((view, index) => {
+    const radial = gradients[index].x * view.x + gradients[index].y * view.y;
+    const tangentX = gradients[index].x - radial * view.x;
+    const tangentY = gradients[index].y - radial * view.y;
+    return normalizePoint({
+      x: view.x - learningRate * tangentX,
+      y: view.y - learningRate * tangentY,
+      label: view.label,
+    });
+  });
+}
+
 export default function ComputerVisionPretrainingPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
@@ -79,56 +169,56 @@ export default function ComputerVisionPretrainingPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">对比学习</h2>
         <p className="text-gray-700 mb-4">
-          对比学习是无监督预训练的重要方法。核心思想是：
+          对比学习是自监督预训练的一类方法。它不使用人工类别标签，但增强策略本身编码了希望模型保持不变的先验：
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-700 mb-4">
           <li><strong>正样本对：</strong>同一张图像的两个不同增强视图应该在表示空间中相近。</li>
           <li><strong>负样本对：</strong>在 instance discrimination 中，不同原始图像的增强视图通常被当作负样本推远；但它们未必语义不相关，同类图像也可能成为 false negatives。</li>
         </ul>
         <p className="text-gray-700 mb-4">
-          以 SIMCLR 为例，对于一个大小为 B 的批次，每个样本生成两个增强视图，得到一个 2B 个样本的增强批次。
-          对每个正样本对 (x̂^(i), x̃^(i))，损失函数鼓励它们的表示相似，同时与其余样本的增强视图不同（此处为只含 B−1 个负样本的简化形式；完整 SimCLR/NT-Xent 的负样本为 2(B−1) 个）：
+          以 SimCLR 为例，对大小为 B 的原始批次各生成两个随机增强视图，经编码器与投影头得到 2B 个 L2 归一化向量 q。
+          余弦相似度等于归一化向量的点积；下游任务通常使用投影头之前的编码器表示。
         </p>
         <FormulaCard
-          title="SIMCLR 损失"
+          title="归一化表示与相似度"
           formula={
             <KaTeX
-              math={String.raw`L_{\text{pre}}(\theta) = -\sum_{i=1}^B \log \frac{\exp\bigl(\phi(\hat{x}^{(i)})^\top \phi(\tilde{x}^{(i)})\bigr)}{\exp\bigl(\phi(\hat{x}^{(i)})^\top \phi(\tilde{x}^{(i)})\bigr) + \sum_{j \neq i} \exp\bigl(\phi(\hat{x}^{(i)})^\top \phi(\tilde{x}^{(j)})\bigr)}`}
+              math={String.raw`q_a=\frac{z_a}{\|z_a\|_2},\qquad \operatorname{sim}(q_a,q_b)=q_a^Tq_b`}
               display
             />
           }
-          description="分母中的正项使同一样本的增强视图相互吸引，负项使不同样本的视图相互排斥。"
+          description="归一化防止仅靠增大向量范数降低损失，使温度 τ 明确控制相似度 logits 的尺度。"
         />
-        <p className="text-gray-700 mt-2 text-sm">
-          {'文本形式：L_pre(θ) = -Σ_i log [ exp(φ(̂x^(i))^T φ(̃x^(i))) / (exp(...) + Σ_{j≠i} exp(φ(̂x^(i))^T φ(̃x^(j)))) ]'}
-        </p>
 
         <FormulaCard
-          title="NT-Xent 损失"
+          title="对称 NT-Xent 损失"
           formula={
             <KaTeX
-              math={String.raw`\ell(i,j) = -\log \frac{\exp\bigl(\text{sim}(z_i, z_j) / \tau\bigr)}{\sum_{k \neq i} \exp\bigl(\text{sim}(z_i, z_k) / \tau\bigr)}`}
+              math={String.raw`\ell_{a,b}=-\log\frac{\exp(\operatorname{sim}(q_a,q_b)/\tau)}{\sum_{k\ne a}\exp(\operatorname{sim}(q_a,q_k)/\tau)},\qquad L=\frac1{2B}\sum_{i=1}^B\!\left(\ell_{2i-1,2i}+\ell_{2i,2i-1}\right)`}
               display
             />
           }
-          description="对正样本对 (i,j) 做归一化交叉熵；分母包含 batch 内所有其他样本。"
+          description="每个锚点的分母含一个正样本和 2B−2 个负样本。较小 τ 会强化难例权重，但也可能放大噪声和 false negatives。"
         />
         <p className="text-gray-700 mt-2 text-sm">
-          {'文本形式：ℓ(i,j) = -log [ exp(sim(z_i,z_j)/τ) / Σ_{k≠i} exp(sim(z_i,z_k)/τ) ]'}
+          {'文本形式：ℓ(a,b) = −log[exp(sim(q_a,q_b)/τ) / Σ_{k≠a}exp(sim(q_a,q_k)/τ)]，再对两个方向和所有样本取平均。'}
+        </p>
+
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          增强必须尽量保留下游语义：例如某些任务中翻转、裁剪或颜色变化会改变标签。大批次提供更多负样本，但同类实例可能成为 false negatives。
+          视觉自监督也包括无负样本的自蒸馏、聚类目标和掩码图像建模，不能把自监督等同于对比学习。
         </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：对比学习一步</h2>
         <p className="text-gray-700 mb-4">
-          下图将三类二维数据视为三个「图像类」。每个原始点经过一次随机增强得到正样本（同色小圆点）。
-          点击「对比学习一步」，模型会把正样本对拉近、负样本对推远。观察在这个玩具数据和当前增强设定下，嵌入空间是否逐渐呈现类别分离趋势。
+          下图把三类二维点视为三个「图像类」，但类别颜色只用于检查，绝不会传入损失。每个实例有两个增强视图并组成正样本对；
+          点击迭代后，演示对所有 2B 个单位向量执行对称 NT-Xent 的投影梯度下降。
         </p>
         <p className="text-xs text-gray-500 mb-4">
-          教学简化：本演示只生成一个增强视图，并把其他图像的增强视图作为负样本；
-          完整的 SIMCLR 还会包含同批次中其他原始视图作为负样本，负样本总数为 2(B-1)。
-          类别分离是该玩具数据和增强方式下的可视化现象，不是纯对比学习必然保证的结果。
-          本演示直接移动二维嵌入点，而不是训练图像编码器；目的是可视化对比损失的吸引/排斥趋势。
+          教学简化：这里直接优化二维编码器输出，而不是反向传播到图像编码器；每个锚点仍使用一个正样本和 2B−2 个负样本。
+          优化目标是实例区分，不是类别聚类；同色点可能互为 false negatives，因此颜色簇不保证收紧。
         </p>
         <ContrastiveDemo />
       </section>
@@ -159,72 +249,30 @@ export default function ComputerVisionPretrainingPage() {
 
 function ContrastiveDemo() {
   const [seed, setSeed] = useState(42);
-  const [embeddings, setEmbeddings] = useState<Point2D[]>(() => generateData(15, 42));
-  const [augSeed, setAugSeed] = useState(100);
+  const [views, setViews] = useState<Point2D[]>(() => createContrastiveViews(10, 42));
+  const [temperature, setTemperature] = useState(0.2);
   const [step, setStep] = useState(0);
+  const pairCount = views.length / 2;
+  const stats = useMemo(() => contrastiveStats(views, temperature), [views, temperature]);
 
-  const augmented = useMemo(() => {
-    return embeddings.map((p, idx) => augment(p, augSeed + idx));
-  }, [embeddings, augSeed]);
-
-  const lr = 0.05;
-  const sampleCount = embeddings.length;
-
-  const doStep = () => {
-    setEmbeddings((current) => {
-      const n = current.length;
-      const grads: Point2D[] = current.map(() => ({ x: 0, y: 0, label: 0 }));
-
-      for (let i = 0; i < n; i++) {
-        const zi = current[i];
-        const zia = augmented[i];
-        let posSim = zi.x * zia.x + zi.y * zia.y;
-        let denom = Math.exp(posSim);
-        const negs: number[] = [];
-        for (let j = 0; j < n; j++) {
-          if (j === i) continue;
-          const sim = zi.x * augmented[j].x + zi.y * augmented[j].y;
-          negs.push(sim);
-          denom += Math.exp(sim);
-        }
-
-        // 正样本梯度
-        const posCoeff = -1 + Math.exp(posSim) / denom;
-        grads[i].x += posCoeff * zia.x;
-        grads[i].y += posCoeff * zia.y;
-
-        // 负样本梯度
-        for (let k = 0; k < negs.length; k++) {
-          const j = k < i ? k : k + 1;
-          const coeff = Math.exp(negs[k]) / denom;
-          grads[i].x += coeff * augmented[j].x;
-          grads[i].y += coeff * augmented[j].y;
-        }
-      }
-
-      return current.map((p, i) => ({
-        x: p.x - lr * grads[i].x,
-        y: p.y - lr * grads[i].y,
-        label: p.label,
-      }));
+  const applySteps = (count: number) => {
+    setViews((current) => {
+      let next = current;
+      for (let i = 0; i < count; i++) next = contrastiveStep(next, temperature);
+      return next;
     });
-    setAugSeed((s) => s + sampleCount * 2 + 1);
-    setStep((s) => s + 1);
+    setStep((value) => value + count);
   };
 
   const reset = () => {
-    const fresh = generateData(15, seed);
-    setEmbeddings(fresh);
-    setAugSeed(100);
+    setViews(createContrastiveViews(10, seed));
     setStep(0);
   };
 
   const resample = () => {
     const nextSeed = seed + 1;
     setSeed(nextSeed);
-    const fresh = generateData(15, nextSeed);
-    setEmbeddings(fresh);
-    setAugSeed(100);
+    setViews(createContrastiveViews(10, nextSeed));
     setStep(0);
   };
 
@@ -234,13 +282,23 @@ function ContrastiveDemo() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={doStep}
+          type="button"
+          onClick={() => applySteps(1)}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
         >
           <SkipForward className="w-4 h-4" />
           对比学习一步
         </button>
         <button
+          type="button"
+          onClick={() => applySteps(10)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+        >
+          <Play className="w-4 h-4" />
+          连续 10 步
+        </button>
+        <button
+          type="button"
           onClick={reset}
           className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
         >
@@ -248,6 +306,7 @@ function ContrastiveDemo() {
           重置
         </button>
         <button
+          type="button"
           onClick={resample}
           className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm"
         >
@@ -255,23 +314,59 @@ function ContrastiveDemo() {
         </button>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <EmbeddingPlot title="原始/锚点嵌入 φ(x)" data={embeddings} colors={colors} />
-        <EmbeddingPlot title="增强视图 φ(x̂)" data={augmented} colors={colors} />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">温度 τ: {temperature.toFixed(2)}</label>
+        <Slider
+          aria-label="NT-Xent 温度"
+          value={[temperature]}
+          min={0.1}
+          max={1}
+          step={0.05}
+          onValueChange={(value) => setTemperature(value[0])}
+        />
       </div>
 
-      <div className="text-sm text-gray-600">
-        已执行步数: <span className="font-mono font-medium text-blue-700">{step}</span>
+      <div className="grid md:grid-cols-2 gap-4">
+        <EmbeddingPlot id="contrastive-view-a" title="视图 A 的单位嵌入" data={views.slice(0, pairCount)} colors={colors} />
+        <EmbeddingPlot id="contrastive-view-b" title="视图 B 的单位嵌入" data={views.slice(pairCount)} colors={colors} />
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm" aria-live="polite">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <span className="block text-gray-600">平均 NT-Xent</span>
+          <span className="font-mono font-medium text-blue-700">{stats.loss.toFixed(6)}</span>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <span className="block text-gray-600">正样本平均余弦</span>
+          <span className="font-mono font-medium text-emerald-700">{stats.positiveSimilarity.toFixed(6)}</span>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <span className="block text-gray-600">负样本平均余弦</span>
+          <span className="font-mono font-medium text-amber-700">{stats.negativeSimilarity.toFixed(6)}</span>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <span className="block text-gray-600">已执行步数</span>
+          <span className="font-mono font-medium text-blue-700">{step}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-4 justify-center text-xs text-gray-600">
+        {colors.map((color, index) => (
+          <span key={color} className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+            检查标签 {index + 1}（损失不可见）
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
-function EmbeddingPlot({ title, data, colors }: { title: string; data: Point2D[]; colors: string[] }) {
+function EmbeddingPlot({ id, title, data, colors }: { id: string; title: string; data: Point2D[]; colors: string[] }) {
   const SIZE = 300;
   const CX = SIZE / 2;
   const CY = SIZE / 2;
-  const SCALE = 60;
+  const PADDING = 16;
+  const SCALE = SIZE / 2 - PADDING;
 
   function toSvg(p: Point2D): { x: number; y: number } {
     return {
@@ -283,23 +378,39 @@ function EmbeddingPlot({ title, data, colors }: { title: string; data: Point2D[]
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-3">
       <h4 className="text-sm font-semibold text-gray-800 mb-2 text-center">{title}</h4>
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full" style={{ maxHeight: 300 }}>
+      <svg
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        className="w-full"
+        style={{ maxHeight: 300 }}
+        role="img"
+        aria-labelledby={`${id}-title ${id}-desc`}
+      >
+        <title id={`${id}-title`}>{title}</title>
+        <desc id={`${id}-desc`}>单位圆上的二维嵌入散点；颜色仅用于事后检查类别，不参与对比损失。</desc>
+        <defs>
+          <clipPath id={`${id}-clip`}>
+            <rect x={PADDING} y={PADDING} width={SIZE - 2 * PADDING} height={SIZE - 2 * PADDING} />
+          </clipPath>
+        </defs>
         <rect x={0} y={0} width={SIZE} height={SIZE} fill="#f9fafb" />
-        <line x1={10} y1={CY} x2={SIZE - 10} y2={CY} stroke="#d1d5db" strokeWidth={1} />
-        <line x1={CX} y1={10} x2={CX} y2={SIZE - 10} stroke="#d1d5db" strokeWidth={1} />
-        {data.map((p, idx) => {
-          const s = toSvg(p);
-          return (
-            <circle
-              key={idx}
-              cx={s.x}
-              cy={s.y}
-              r={4}
-              fill={colors[p.label % colors.length]}
-              opacity={0.8}
-            />
-          );
-        })}
+        <circle cx={CX} cy={CY} r={SCALE} fill="none" stroke="#cbd5e1" strokeWidth={1} strokeDasharray="4 4" />
+        <line x1={PADDING} y1={CY} x2={SIZE - PADDING} y2={CY} stroke="#d1d5db" strokeWidth={1} />
+        <line x1={CX} y1={PADDING} x2={CX} y2={SIZE - PADDING} stroke="#d1d5db" strokeWidth={1} />
+        <g clipPath={`url(#${id}-clip)`}>
+          {data.map((p, idx) => {
+            const s = toSvg(p);
+            return (
+              <circle
+                key={idx}
+                cx={s.x}
+                cy={s.y}
+                r={4}
+                fill={colors[p.label % colors.length]}
+                opacity={0.8}
+              />
+            );
+          })}
+        </g>
       </svg>
     </div>
   );
