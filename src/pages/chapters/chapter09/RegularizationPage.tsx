@@ -7,94 +7,101 @@ import { Slider } from '@/components/ui/slider';
 /* -------------------------------------------------------------------------- */
 /* 数值工具                                                                   */
 /* -------------------------------------------------------------------------- */
-function solveLinearSystem(A: number[][], b: number[]): number[] {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+function leastSquaresQR(A: number[][], b: number[]): number[] {
+  const columns = A[0].map((_, j) => A.map((row) => row[j]));
+  const qColumns: number[][] = [];
+  const r = Array.from({ length: columns.length }, () => new Array(columns.length).fill(0));
+  for (let j = 0; j < columns.length; j += 1) {
+    const v = [...columns[j]];
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (let i = 0; i < j; i += 1) {
+        const projection = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+        r[i][j] += projection;
+        for (let row = 0; row < v.length; row += 1) v[row] -= projection * qColumns[i][row];
+      }
     }
-    [M[i], M[maxRow]] = [M[maxRow], M[i]];
-
-    const pivot = M[i][i];
-    if (Math.abs(pivot) < 1e-12) continue;
-
-    for (let j = i; j <= n; j++) M[i][j] /= pivot;
-
-    for (let k = 0; k < n; k++) {
-      if (k === i) continue;
-      const factor = M[k][i];
-      for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
-    }
+    const norm = Math.sqrt(v.reduce((sum, value) => sum + value * value, 0));
+    if (norm < 1e-12) return new Array(columns.length).fill(0);
+    r[j][j] = norm;
+    qColumns.push(v.map((value) => value / norm));
   }
+  const qty = qColumns.map((column) => column.reduce((sum, q, row) => sum + q * b[row], 0));
+  const result = new Array(columns.length).fill(0);
+  for (let i = columns.length - 1; i >= 0; i -= 1) {
+    const known = r[i].reduce((sum, value, j) => (j > i ? sum + value * result[j] : sum), 0);
+    result[i] = (qty[i] - known) / r[i][i];
+  }
+  return result;
+}
 
-  return M.map((row) => row[n]);
+function polynomialBasis(x: number, degree: number): number[] {
+  const z = 2 * x - 1;
+  const basis = new Array(degree + 1).fill(0);
+  basis[0] = 1;
+  if (degree >= 1) basis[1] = z;
+  for (let j = 2; j <= degree; j += 1) basis[j] = 2 * z * basis[j - 1] - basis[j - 2];
+  return basis;
 }
 
 function designMatrix(xs: number[], degree: number): number[][] {
-  return xs.map((x) => Array.from({ length: degree + 1 }, (_, j) => Math.pow(x, j)));
+  return xs.map((x) => polynomialBasis(x, degree));
 }
 
 function fitPolyRidge(xs: number[], ys: number[], degree: number, lambda: number): number[] {
   const effectiveDegree = Math.max(0, Math.min(degree, xs.length - 1));
   const X = designMatrix(xs, effectiveDegree);
-  const Xt = X[0].map((_, col) => X.map((row) => row[col]));
-  const XtX = Xt.map((row) => XtXRow(row, X));
-  const Xty = Xt.map((row) => row.reduce((sum, v, i) => sum + v * ys[i], 0));
-
-  // 不惩罚偏置项（j=0）
-  for (let i = 0; i < XtX.length; i++) {
-    if (i > 0) XtX[i][i] += lambda;
+  const scale = 1 / Math.sqrt(X.length);
+  const augmentedX = X.map((row) => row.map((value) => value * scale));
+  const augmentedY = ys.map((value) => value * scale);
+  if (lambda > 0) {
+    for (let j = 1; j < X[0].length; j += 1) {
+      const penaltyRow = new Array(X[0].length).fill(0);
+      penaltyRow[j] = Math.sqrt(lambda);
+      augmentedX.push(penaltyRow);
+      augmentedY.push(0);
+    }
   }
-  return solveLinearSystem(XtX, Xty);
+  return leastSquaresQR(augmentedX, augmentedY);
 }
 
-function fitPolyLasso(xs: number[], ys: number[], degree: number, lambda: number, steps = 2000): number[] {
+function fitPolyLasso(xs: number[], ys: number[], degree: number, lambda: number, steps = 10000): number[] {
+  if (lambda === 0) return fitPolyRidge(xs, ys, degree, 0);
   const effectiveDegree = Math.max(0, Math.min(degree, xs.length - 1));
   const X = designMatrix(xs, effectiveDegree);
   const n = X.length;
   const d = X[0].length;
-
-  // 计算步长：1 / (最大特征值近似)
-  let maxEigen = 0;
-  for (let j = 0; j < d; j++) {
-    let sum = 0;
-    for (let i = 0; i < n; i++) sum += X[i][j] * X[i][j];
-    if (sum > maxEigen) maxEigen = sum;
-  }
-  const eta = maxEigen > 0 ? 1 / maxEigen : 0.01;
-
-  let w = new Array(d).fill(0);
+  const w = new Array(d).fill(0);
+  const gram = Array.from({ length: d }, (_, j) =>
+    Array.from({ length: d }, (_, k) => X.reduce((sum, row) => sum + row[j] * row[k], 0) / n),
+  );
+  const target = Array.from(
+    { length: d },
+    (_, j) => X.reduce((sum, row, i) => sum + row[j] * ys[i], 0) / n,
+  );
   for (let step = 0; step < steps; step++) {
-    const grad = new Array(d).fill(0);
-    for (let i = 0; i < n; i++) {
-      const pred = X[i].reduce((sum, xij, j) => sum + xij * w[j], 0);
-      const residual = pred - ys[i];
-      for (let j = 0; j < d; j++) {
-        grad[j] += residual * X[i][j] / n;
-      }
-    }
-    // 软阈值：不惩罚偏置项
+    let maxChange = 0;
     for (let j = 0; j < d; j++) {
-      const v = w[j] - eta * grad[j];
-      if (j === 0) {
-        w[j] = v;
-      } else {
-        w[j] = v > lambda * eta ? v - lambda * eta : v < -lambda * eta ? v + lambda * eta : 0;
-      }
+      const rho = target[j] - gram[j].reduce(
+        (sum, covariance, k) => (k === j ? sum : sum + covariance * w[k]),
+        0,
+      );
+      const next = j === 0
+        ? rho / gram[j][j]
+        : Math.sign(rho) * Math.max(Math.abs(rho) - lambda, 0) / gram[j][j];
+      const change = next - w[j];
+      w[j] = next;
+      maxChange = Math.max(maxChange, Math.abs(change));
     }
+    if (maxChange < 1e-11) break;
   }
   return w;
 }
 
-function XtXRow(row: number[], X: number[][]): number[] {
-  return X[0].map((_, j) => row.reduce((sum, v, i) => sum + v * X[i][j], 0));
-}
-
 function predict(xs: number[], weights: number[]): number[] {
-  return xs.map((x) => weights.reduce((sum, w, j) => sum + w * Math.pow(x, j), 0));
+  return xs.map((x) => {
+    const basis = polynomialBasis(x, weights.length - 1);
+    return weights.reduce((sum, weight, j) => sum + weight * basis[j], 0);
+  });
 }
 
 function mse(pred: number[], actual: number[]): number {
@@ -197,7 +204,7 @@ export default function RegularizationPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">正则化</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          正则化通过在损失函数中加入惩罚项来控制模型复杂度。L2 正则化（权重衰减）倾向于让参数变小，
+          正则化通过在损失函数中加入惩罚项来控制模型复杂度。L2 正则化倾向于让参数变小，
           L1 正则化（LASSO）则倾向于产生稀疏解。
         </p>
 
@@ -211,7 +218,7 @@ export default function RegularizationPage() {
         </div>
         <p className="text-gray-700 mb-4">
           当模型过于复杂时，它可能会记住训练数据中的噪声而不是学习潜在规律。正则化在优化目标中加入一个惩罚项，
-          使得模型在拟合数据的同时保持较小的复杂度。
+          使得模型在拟合数据的同时保持较小的复杂度。下式中的 θ̃ 表示不含截距的受正则系数。
         </p>
 
         <FormulaCard
@@ -228,16 +235,16 @@ export default function RegularizationPage() {
         <div className="grid md:grid-cols-2 gap-4 mt-4">
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <h3 className="font-semibold text-blue-800 mb-2">L2 正则化 / 权重衰减</h3>
-            <KaTeX math={String.raw`R(\theta) = \frac{1}{2}\|\theta\|_2^2`} />
+            <KaTeX math={String.raw`R(\theta) = \frac{1}{2}\|\tilde\theta\|_2^2`} />
             <p className="text-sm text-gray-700 mt-2">
-              倾向于让所有参数均匀变小。在普通 SGD 下，L2 正则化与 weight decay 形式等价；在 AdamW 等优化器中，weight decay 通常采用解耦实现，与直接加入 L2 penalty 不完全相同。
+              通常只惩罚非截距系数，使其整体变小。在普通 SGD 下，L2 正则化与 weight decay 形式等价；在 AdamW 等优化器中，weight decay 通常采用解耦实现，与直接加入 L2 penalty 不完全相同。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
             <h3 className="font-semibold text-emerald-800 mb-2">L1 正则化 / LASSO</h3>
-            <KaTeX math={String.raw`R(\theta) = \|\theta\|_1`} />
+            <KaTeX math={String.raw`R(\theta) = \|\tilde\theta\|_1`} />
             <p className="text-sm text-gray-700 mt-2">
-              倾向于让部分参数精确为零，从而产生稀疏模型。
+              通常不惩罚截距，并倾向于让部分系数精确为零，从而产生稀疏模型。
             </p>
           </div>
         </div>
@@ -250,7 +257,8 @@ export default function RegularizationPage() {
         </p>
 
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-          这里的 L1/L2 拟合是教学用的简化数值实现，用于展示正则化趋势；实际应用中通常使用更稳定的优化器或机器学习库。
+          为改善高次多项式的数值条件，本演示在 z=2x−1 上使用 Chebyshev 基，并且不惩罚常数项。
+          L1 与 L2 都对应同一个平均平方损失尺度：L2 用增广 QR 求解，L1 用坐标下降求解。
         </div>
 
         <RegularizationDemo />
@@ -264,7 +272,7 @@ export default function RegularizationPage() {
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>正则化通过惩罚模型复杂度来防止过拟合。</span>
+            <span>正则化通过惩罚模型复杂度来缓解过拟合，但强度过大也可能导致欠拟合。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
@@ -272,7 +280,7 @@ export default function RegularizationPage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>L1 正则化可以产生精确为零的参数，实现特征选择。</span>
+            <span>L1 正则化可以产生精确为零的系数；在适当条件下可用于稀疏建模或特征选择。</span>
           </li>
         </ul>
       </section>
@@ -323,25 +331,27 @@ function RegularizationDemo() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-5">
           <ControlRow label={`多项式次数: ${degree}${degree !== effectiveDegree ? ` (实际拟合: ${effectiveDegree})` : ''}`}>
-            <Slider value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
+            <Slider aria-label="正则化演示多项式次数" value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
           </ControlRow>
           <ControlRow label={`训练样本数: ${nTrain}`}>
-            <Slider value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
+            <Slider aria-label="正则化演示训练样本数" value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
           </ControlRow>
           <ControlRow label={`噪声标准差: ${noise.toFixed(2)}`}>
-            <Slider value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
+            <Slider aria-label="正则化演示噪声标准差" value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
           </ControlRow>
           <ControlRow label={`正则化强度 λ: ${lambda.toFixed(3)}`}>
-            <Slider value={[lambda]} min={0} max={0.5} step={0.001} onValueChange={(v) => setLambda(v[0])} />
+            <Slider aria-label="正则化强度 lambda" value={[lambda]} min={0} max={0.5} step={0.001} onValueChange={(v) => setLambda(v[0])} />
           </ControlRow>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">正则化类型</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(['none', 'l2', 'l1'] as const).map((t) => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setRegType(t)}
+                  aria-pressed={regType === t}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     regType === t
                       ? 'bg-blue-600 text-white'
@@ -355,6 +365,7 @@ function RegularizationDemo() {
           </div>
 
           <button
+            type="button"
             onClick={() => setSeed((s) => s + 1)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -367,7 +378,7 @@ function RegularizationDemo() {
               <span className="font-mono font-medium text-blue-700">{trainError.toFixed(6)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">测试误差:</span>
+              <span className="text-gray-600">独立模拟集误差:</span>
               <span className="font-mono font-medium text-emerald-700">{testError.toFixed(6)}</span>
             </div>
             <div className="flex justify-between">
@@ -375,16 +386,25 @@ function RegularizationDemo() {
               <span className="font-mono font-medium text-gray-700">{weights.filter((w) => Math.abs(w) > 1e-6).length}/{weights.length}</span>
             </div>
           </div>
+          <p className="text-xs text-gray-500">模拟集指标仅用于观察正则化效果；实际调参应使用验证集，并把测试集留到最终评估。</p>
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }} role="img" aria-label={`${regType === 'none' ? '无正则' : regType.toUpperCase()}多项式拟合曲线`}>
+            <title>不同正则化下的多项式拟合</title>
+            <defs>
+              <clipPath id="regularization-chart-clip">
+                <rect x={PADDING.left} y={PADDING.top} width={WIDTH - PADDING.left - PADDING.right} height={HEIGHT - PADDING.top - PADDING.bottom} />
+              </clipPath>
+            </defs>
             <ChartFrame />
-            <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
-            <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
-            {train.x.map((x, i) => (
-              <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
-            ))}
+            <g clipPath="url(#regularization-chart-clip)">
+              <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
+              <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
+              {train.x.map((x, i) => (
+                <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
+              ))}
+            </g>
           </svg>
           <div className="flex flex-wrap gap-4 justify-center mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> 训练点</span>
@@ -395,11 +415,12 @@ function RegularizationDemo() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">多项式系数大小</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-1">Chebyshev 多项式系数大小</h3>
+        <p className="text-xs text-gray-500 mb-3">Tⱼ 表示 z=2x−1 上的第 j 个 Chebyshev 基函数。</p>
         <div className="space-y-2">
           {weights.map((w, j) => (
             <div key={j} className="flex items-center gap-3">
-              <span className="w-16 text-xs text-gray-500 font-mono">x^{j}</span>
+              <span className="w-16 text-xs text-gray-500 font-mono">T_{j}</span>
               <div className="flex-grow h-6 bg-gray-100 rounded overflow-hidden relative">
                 <div
                   className="absolute top-0 bottom-0 bg-blue-500 transition-all"

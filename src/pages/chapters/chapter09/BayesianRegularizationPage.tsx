@@ -7,50 +7,68 @@ import { Slider } from '@/components/ui/slider';
 /* -------------------------------------------------------------------------- */
 /* 数值工具                                                                   */
 /* -------------------------------------------------------------------------- */
-function solveLinearSystem(A: number[][], b: number[]): number[] {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+function leastSquaresQR(A: number[][], b: number[]): number[] {
+  const columns = A[0].map((_, j) => A.map((row) => row[j]));
+  const qColumns: number[][] = [];
+  const r = Array.from({ length: columns.length }, () => new Array(columns.length).fill(0));
+  for (let j = 0; j < columns.length; j += 1) {
+    const v = [...columns[j]];
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (let i = 0; i < j; i += 1) {
+        const projection = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+        r[i][j] += projection;
+        for (let row = 0; row < v.length; row += 1) v[row] -= projection * qColumns[i][row];
+      }
     }
-    [M[i], M[maxRow]] = [M[maxRow], M[i]];
-
-    const pivot = M[i][i];
-    if (Math.abs(pivot) < 1e-12) continue;
-
-    for (let j = i; j <= n; j++) M[i][j] /= pivot;
-
-    for (let k = 0; k < n; k++) {
-      if (k === i) continue;
-      const factor = M[k][i];
-      for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
-    }
+    const norm = Math.sqrt(v.reduce((sum, value) => sum + value * value, 0));
+    if (norm < 1e-12) return new Array(columns.length).fill(0);
+    r[j][j] = norm;
+    qColumns.push(v.map((value) => value / norm));
   }
+  const qty = qColumns.map((column) => column.reduce((sum, q, row) => sum + q * b[row], 0));
+  const result = new Array(columns.length).fill(0);
+  for (let i = columns.length - 1; i >= 0; i -= 1) {
+    const known = r[i].reduce((sum, value, j) => (j > i ? sum + value * result[j] : sum), 0);
+    result[i] = (qty[i] - known) / r[i][i];
+  }
+  return result;
+}
 
-  return M.map((row) => row[n]);
+function polynomialBasis(x: number, degree: number): number[] {
+  const z = 2 * x - 1;
+  const basis = new Array(degree + 1).fill(0);
+  basis[0] = 1;
+  if (degree >= 1) basis[1] = z;
+  for (let j = 2; j <= degree; j += 1) basis[j] = 2 * z * basis[j - 1] - basis[j - 2];
+  return basis;
 }
 
 function designMatrix(xs: number[], degree: number): number[][] {
-  return xs.map((x) => Array.from({ length: degree + 1 }, (_, j) => Math.pow(x, j)));
+  return xs.map((x) => polynomialBasis(x, degree));
 }
 
 function fitPolyRidge(xs: number[], ys: number[], degree: number, lambda: number): number[] {
   const effectiveDegree = Math.max(0, Math.min(degree, xs.length - 1));
   const X = designMatrix(xs, effectiveDegree);
-  const Xt = X[0].map((_, col) => X.map((row) => row[col]));
-  const XtX = Xt.map((row) => row.map((_, j) => row.reduce((sum, v, i) => sum + v * X[i][j], 0)));
-  const Xty = Xt.map((row) => row.reduce((sum, v, i) => sum + v * ys[i], 0));
-  for (let i = 0; i < XtX.length; i++) {
-    if (i > 0) XtX[i][i] += lambda;
+  const scale = 1 / Math.sqrt(X.length);
+  const augmentedX = X.map((row) => row.map((value) => value * scale));
+  const augmentedY = ys.map((value) => value * scale);
+  if (lambda > 0) {
+    for (let j = 1; j < X[0].length; j += 1) {
+      const penaltyRow = new Array(X[0].length).fill(0);
+      penaltyRow[j] = Math.sqrt(lambda);
+      augmentedX.push(penaltyRow);
+      augmentedY.push(0);
+    }
   }
-  return solveLinearSystem(XtX, Xty);
+  return leastSquaresQR(augmentedX, augmentedY);
 }
 
 function predict(xs: number[], weights: number[]): number[] {
-  return xs.map((x) => weights.reduce((sum, w, j) => sum + w * Math.pow(x, j), 0));
+  return xs.map((x) => {
+    const basis = polynomialBasis(x, weights.length - 1);
+    return weights.reduce((sum, weight, j) => sum + weight * basis[j], 0);
+  });
 }
 
 function mse(pred: number[], actual: number[]): number {
@@ -149,8 +167,8 @@ export default function BayesianRegularizationPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">贝叶斯统计与正则化</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          从贝叶斯统计的角度看，正则化等价于对模型参数引入先验分布。最大后验估计（MAP）在似然项之外加入了先验项，
-          自然起到了正则化的作用。
+          从贝叶斯统计的角度看，许多正则项可以解释为参数先验的负对数。最大后验估计（MAP）同时考虑似然与先验，
+          在特定似然、先验和损失缩放下会得到熟悉的正则化目标。
         </p>
 
         <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
@@ -175,7 +193,7 @@ export default function BayesianRegularizationPage() {
                 display
               />
             }
-            description="只考虑数据似然，容易过拟合。"
+            description="MLE 只使用数据似然；在有限样本或高维模型中可能具有较高方差。"
           />
           <FormulaCard
             title="最大后验估计（MAP）"
@@ -185,7 +203,7 @@ export default function BayesianRegularizationPage() {
                 display
               />
             }
-            description="在似然基础上乘以先验，等价于正则化。"
+            description="MAP 最大化似然与先验的乘积；取负对数后，负对数先验表现为参数惩罚项。"
           />
         </div>
       </section>
@@ -193,22 +211,25 @@ export default function BayesianRegularizationPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">高斯先验与 L2 正则化</h2>
         <p className="text-gray-700 mb-4">
-          如果我们假设参数服从零均值高斯分布 θ ∼ N(0, τ²I)，那么 MAP 估计中的先验项取对数后就变成了 L2 惩罚：
+          在线性高斯回归中，若观测噪声方差为 σ²，受正则的系数满足零均值高斯先验 θ̃∼N(0,τ²I)，
+          并对截距采用平坦先验，那么负对数后验为：
         </p>
         <FormulaCard
-          title="MAP = L2 正则化"
+          title="高斯似然 + 高斯先验 = L2 型 MAP"
           formula={
             <KaTeX
-              math={String.raw`\log p(\theta) = -\frac{1}{2\tau^2}\|\theta\|_2^2 + \text{const} \quad \Longleftrightarrow \quad R(\theta) = \frac{1}{2}\|\theta\|_2^2`}
+              math={String.raw`-\log p(\theta\mid\mathcal D)
+              =\frac{1}{2\sigma^2}\|y-X\theta\|_2^2
+              +\frac{1}{2\tau^2}\|\tilde\theta\|_2^2+C`}
               display
             />
           }
-          description="高斯先验对应 L2 penalty；先验方差 τ² 越小，正则化强度 λ 越大。在普通 SGD 下，它与 weight decay 形式等价，但在 AdamW 等解耦 weight decay 实现中，两者并不完全相同。"
+          description="若数据项写成 (1/2n)‖y−Xθ‖²、正则项写成 (λ/2)‖θ̃‖²，则 λ=σ²/(nτ²)。因此先验方差越小，正则越强；对应关系取决于噪声方差与目标函数缩放。"
         />
 
         <p className="text-gray-700 mt-4">
-          交互演示：调整“先验强度”（等价于正则化强度 λ），观察 MAP 估计如何从无正则化的 MLE
-          逐渐转变为更受先验影响的平滑解。
+          交互演示：调整以正则化强度 λ 表示的先验约束，观察 MAP 估计如何从无正则化的 MLE
+          逐渐转变为更受先验影响的解。演示在 z=2x−1 的 Chebyshev 基上使用增广 QR，并且不惩罚常数项。
         </p>
         <BayesianDemo />
       </section>
@@ -225,11 +246,11 @@ export default function BayesianRegularizationPage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>MAP 估计在似然基础上加入先验，等价于正则化。</span>
+            <span>MAP 的负对数目标由负对数似然与负对数先验组成，后者可表现为正则项。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>零均值高斯先验对应 L2 penalty；在普通 SGD 下它与 weight decay 形式等价，但在 AdamW 等解耦实现中并不完全相同。</span>
+            <span>在线性高斯回归中，高斯系数先验导出 L2 型 MAP；λ 还取决于噪声方差、样本数与损失缩放。</span>
           </li>
         </ul>
       </section>
@@ -246,12 +267,13 @@ function BayesianDemo() {
   const [nTrain, setNTrain] = useState(20);
   const [noise, setNoise] = useState(0.2);
   const [seed, setSeed] = useState(42);
+  const effectiveDegree = Math.min(degree, nTrain - 1);
 
   const { train, weights, trainError, testError, predPoints, truePoints, mlePredPoints } = useMemo(() => {
     const tr = generateData(nTrain, noise, seed);
     const te = generateData(200, noise, seed + 1000);
-    const wMap = fitPolyRidge(tr.x, tr.y, degree, lambda);
-    const wMle = fitPolyRidge(tr.x, tr.y, degree, 0);
+    const wMap = fitPolyRidge(tr.x, tr.y, effectiveDegree, lambda);
+    const wMle = fitPolyRidge(tr.x, tr.y, effectiveDegree, 0);
     const curvePoints = Array.from({ length: 200 }, (_, i) => (i / 199) * (X_MAX - X_MIN) + X_MIN);
     return {
       train: tr,
@@ -262,25 +284,26 @@ function BayesianDemo() {
       mlePredPoints: curvePoints.map((x) => ({ x, y: predict([x], wMle)[0] })),
       truePoints: curvePoints.map((x) => ({ x, y: trueFunction(x) })),
     };
-  }, [degree, lambda, nTrain, noise, seed]);
+  }, [effectiveDegree, lambda, nTrain, noise, seed]);
 
   return (
     <div className="space-y-4 mt-6">
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-5">
-          <ControlRow label={`先验强度 / λ: ${lambda.toFixed(3)}`}>
-            <Slider value={[lambda]} min={0} max={0.5} step={0.001} onValueChange={(v) => setLambda(v[0])} />
+          <ControlRow label={`MAP 正则强度 λ: ${lambda.toFixed(3)}`}>
+            <Slider aria-label="MAP 正则强度" value={[lambda]} min={0} max={0.5} step={0.001} onValueChange={(v) => setLambda(v[0])} />
           </ControlRow>
-          <ControlRow label={`多项式次数: ${degree}`}>
-            <Slider value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
+          <ControlRow label={`多项式次数: ${effectiveDegree}${degree !== effectiveDegree ? `（受样本数限制，原设定 ${degree}）` : ''}`}>
+            <Slider aria-label="多项式次数" value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
           </ControlRow>
           <ControlRow label={`训练样本数: ${nTrain}`}>
-            <Slider value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
+            <Slider aria-label="训练样本数" value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
           </ControlRow>
           <ControlRow label={`噪声标准差: ${noise.toFixed(2)}`}>
-            <Slider value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
+            <Slider aria-label="噪声标准差" value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
           </ControlRow>
           <button
+            type="button"
             onClick={() => setSeed((s) => s + 1)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -293,27 +316,43 @@ function BayesianDemo() {
               <span className="font-mono font-medium text-blue-700">{trainError.toFixed(6)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">MAP 测试误差:</span>
+              <span className="text-gray-600">MAP 独立模拟集误差:</span>
               <span className="font-mono font-medium text-emerald-700">{testError.toFixed(6)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">参数 L2 范数:</span>
+              <span className="text-gray-600">受正则系数的 L2 范数:</span>
               <span className="font-mono font-medium text-gray-700">
-                {Math.sqrt(weights.reduce((sum, w) => sum + w * w, 0)).toFixed(6)}
+                {Math.sqrt(weights.slice(1).reduce((sum, w) => sum + w * w, 0)).toFixed(6)}
               </span>
             </div>
           </div>
+          <p className="text-xs text-gray-500">模拟集指标仅用于教学观察，不应在真实任务中据此选择 λ。</p>
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }}>
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="w-full min-w-[360px]"
+            style={{ maxHeight: 360 }}
+            role="img"
+            aria-labelledby="bayesian-demo-title bayesian-demo-desc"
+          >
+            <title id="bayesian-demo-title">MAP 与 MLE 多项式拟合对比</title>
+            <desc id="bayesian-demo-desc">显示训练点、真实函数、未正则化的最大似然曲线和高斯先验下的最大后验曲线。</desc>
+            <defs>
+              <clipPath id="bayesian-regularization-chart-clip">
+                <rect x={PADDING.left} y={PADDING.top} width={WIDTH - PADDING.left - PADDING.right} height={HEIGHT - PADDING.top - PADDING.bottom} />
+              </clipPath>
+            </defs>
             <ChartFrame />
-            <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
-            <path d={pathFromPoints(mlePredPoints)} fill="none" stroke="#9ca3af" strokeWidth={2} />
-            <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
-            {train.x.map((x, i) => (
-              <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
-            ))}
+            <g clipPath="url(#bayesian-regularization-chart-clip)">
+              <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
+              <path d={pathFromPoints(mlePredPoints)} fill="none" stroke="#9ca3af" strokeWidth={2} />
+              <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
+              {train.x.map((x, i) => (
+                <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
+              ))}
+            </g>
           </svg>
           <div className="flex flex-wrap gap-4 justify-center mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> 训练点</span>
