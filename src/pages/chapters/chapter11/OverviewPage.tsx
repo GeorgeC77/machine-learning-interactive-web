@@ -1,4 +1,4 @@
-import { ShieldAlert, BookOpen, CheckCircle2 , Circle} from 'lucide-react';
+import { ShieldAlert, BookOpen, CheckCircle2, Circle } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 
@@ -11,11 +11,21 @@ export default function OverviewPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">EM 算法</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          期望最大化（EM）算法是处理含有隐变量模型的强大工具。它通过交替执行 E-step 和 M-step，
-          逐步最大化观测数据的对数似然。
+          期望最大化（EM）算法用于一类含隐变量的最大似然问题。精确 EM 交替执行 E-step 与 M-step，
+          在满足可计算性和精确更新等条件时使观测数据对数似然单调不减。
         </p>
 
         <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">学习目标</h2>
+        <ul className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+          <li className="rounded-lg border border-gray-200 p-3">从 Jensen 不等式与 KL 分解推导 ELBO。</li>
+          <li className="rounded-lg border border-gray-200 p-3">推导一维 GMM 的责任度、混合权重、均值与方差更新。</li>
+          <li className="rounded-lg border border-gray-200 p-3">说明精确 EM 单调性的条件，以及局部解、奇异点和初始化风险。</li>
+          <li className="rounded-lg border border-gray-200 p-3">区分精确 EM、变分 EM 与 VAE 的摊销变分推断。</li>
+        </ul>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -63,11 +73,11 @@ export default function OverviewPage() {
           title="EM 算法"
           formula={
             <KaTeX
-              math={String.raw`\text{E-step: } Q_i(z^{(i)}) := p\bigl(z^{(i)}|x^{(i)};\theta\bigr) \quad \text{M-step: } \theta := \arg\max_\theta \sum_i \sum_{z^{(i)}} Q_i(z^{(i)}) \log \frac{p(x^{(i)},z^{(i)};\theta)}{Q_i(z^{(i)})}`}
+              math={String.raw`\text{E: } Q_i^{(t)}(z) := p\bigl(z|x^{(i)};\theta^{(t)}\bigr) \quad \text{M: } \theta^{(t+1)} := \arg\max_\theta \sum_i \mathbb E_{Q_i^{(t)}}\!\left[\log p\bigl(x^{(i)},z;\theta\bigr)\right]`}
               display
             />
           }
-          description="E-step 计算隐变量的后验分布，M-step 最大化基于该分布的期望完全数据对数似然。"
+          description="在第 t 轮，E-step 令 Q_i 为 θ^(t) 下的精确后验；M-step 固定 Q_i，选择 θ^(t+1) 最大化期望完全数据对数似然（熵项对 θ 为常数）。"
         />
       </section>
 
@@ -87,7 +97,7 @@ export default function OverviewPage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>Jensen 不等式保证了 EM 每次迭代不降低观测似然。</span>
+            <span>精确 E-step 与精确 M-step 配合 ELBO 紧致性，可保证观测对数似然单调不减，但不保证全局最优。</span>
           </li>
         </ul>
       </section>

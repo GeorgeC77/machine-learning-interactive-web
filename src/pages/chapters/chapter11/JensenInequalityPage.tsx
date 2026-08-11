@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { ShieldAlert, Sigma, CheckCircle2 , Circle} from 'lucide-react';
+import { ShieldAlert, Sigma, CheckCircle2, Circle } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 import { Slider } from '@/components/ui/slider';
@@ -22,6 +22,7 @@ export default function JensenInequalityPage() {
   const ex = p * a + (1 - p) * b;
   const efx = p * f(a) + (1 - p) * f(b);
   const fex = f(ex);
+  const jensenGap = mode === 'convex' ? efx - fex : fex - efx;
 
   const WIDTH = 600;
   const HEIGHT = 400;
@@ -53,7 +54,7 @@ export default function JensenInequalityPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">Jensen 不等式</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          Jensen 不等式是证明 EM 算法收敛性的核心工具。它描述了凸函数或凹函数在期望值处的不等关系。
+          Jensen 不等式是 EM 构造证据下界并证明似然单调性的核心工具。它描述凸函数或凹函数在期望值处的不等关系。
         </p>
 
         <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
@@ -72,7 +73,7 @@ export default function JensenInequalityPage() {
               display
             />
           }
-          description="如果 f 是严格凸函数，等号成立当且仅当 X 几乎处处为常数。对于凹函数，不等号方向相反。"
+          description="当相关期望存在且 X 的取值位于 f 的定义域内时成立。若 f 在该区间严格凸，等号当且仅当 X 几乎处处为常数；凹函数的不等号方向相反。"
         />
 
         <p className="text-gray-700 mt-4">
@@ -89,19 +90,21 @@ export default function JensenInequalityPage() {
 
         <div className="grid md:grid-cols-3 gap-4 mb-4">
           <ControlRow label={`取值 a: ${a.toFixed(1)}`}>
-            <Slider value={[a]} min={-4.5} max={4.5} step={0.1} onValueChange={(v) => setA(v[0])} />
+            <Slider aria-label="随机变量取值 a" value={[a]} min={-4.5} max={4.5} step={0.1} onValueChange={(v) => setA(v[0])} />
           </ControlRow>
           <ControlRow label={`取值 b: ${b.toFixed(1)}`}>
-            <Slider value={[b]} min={-4.5} max={4.5} step={0.1} onValueChange={(v) => setB(v[0])} />
+            <Slider aria-label="随机变量取值 b" value={[b]} min={-4.5} max={4.5} step={0.1} onValueChange={(v) => setB(v[0])} />
           </ControlRow>
           <ControlRow label={`P(X=a): ${p.toFixed(2)}`}>
-            <Slider value={[p]} min={0} max={1} step={0.01} onValueChange={(v) => setP(v[0])} />
+            <Slider aria-label="随机变量取值 a 的概率" value={[p]} min={0} max={1} step={0.01} onValueChange={(v) => setP(v[0])} />
           </ControlRow>
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           <button
+            type="button"
             onClick={() => setMode('convex')}
+            aria-pressed={mode === 'convex'}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               mode === 'convex' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
@@ -109,7 +112,9 @@ export default function JensenInequalityPage() {
             凸函数 f(x)=0.15x²
           </button>
           <button
+            type="button"
             onClick={() => setMode('concave')}
+            aria-pressed={mode === 'concave'}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               mode === 'concave' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
@@ -119,7 +124,15 @@ export default function JensenInequalityPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 400 }}>
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="w-full min-w-[360px]"
+            style={{ maxHeight: 400 }}
+            role="img"
+            aria-labelledby="jensen-chart-title jensen-chart-desc"
+          >
+            <title id="jensen-chart-title">Jensen 不等式的两点分布示意图</title>
+            <desc id="jensen-chart-desc">展示 {mode === 'convex' ? '凸' : '凹'}函数、端点弦、期望函数值与函数在期望处的值。</desc>
             <rect x={PADDING.left} y={PADDING.top} width={WIDTH - PADDING.left - PADDING.right} height={HEIGHT - PADDING.top - PADDING.bottom} fill="#f9fafb" />
             {[-4, -2, 0, 2, 4].map((x) => (
               <line key={`vx-${x}`} x1={sx(x)} y1={PADDING.top} x2={sx(x)} y2={HEIGHT - PADDING.bottom} stroke="#e5e7eb" strokeWidth={1} />
@@ -163,7 +176,7 @@ export default function JensenInequalityPage() {
           <span className="flex items-center gap-1"><span className="w-6 h-0.5 border-b-2 border-dashed border-gray-400" /> 弦</span>
         </div>
 
-        <div className="mt-4 bg-gray-50 rounded-lg p-4 border border-gray-200 text-sm space-y-1">
+        <div className="mt-4 bg-gray-50 rounded-lg p-4 border border-gray-200 text-sm space-y-1" aria-live="polite">
           <div className="flex justify-between">
             <span className="text-gray-600">E[X] =</span>
             <span className="font-mono font-medium text-gray-700">{ex.toFixed(6)}</span>
@@ -177,8 +190,8 @@ export default function JensenInequalityPage() {
             <span className="font-mono font-medium text-emerald-700">{fex.toFixed(6)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">差值 E[f(X)] - f(E[X]) =</span>
-            <span className="font-mono font-medium text-blue-700">{(efx - fex).toFixed(6)}</span>
+            <span className="text-gray-600">Jensen 间隙（应 ≥ 0）=</span>
+            <span className="font-mono font-medium text-blue-700">{jensenGap.toFixed(6)}</span>
           </div>
         </div>
       </section>

@@ -1,4 +1,4 @@
-import { ShieldAlert, RotateCcw, CheckCircle2 , Circle} from 'lucide-react';
+import { ShieldAlert, RotateCcw, CheckCircle2, Circle } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 
@@ -40,7 +40,7 @@ export default function GMMRevisitedPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">M-step</h2>
         <p className="text-gray-700 mb-4">
-          M-step 需要最大化以下 ELBO 关于 φ, μ, σ 的表达式：
+          M-step 固定 E-step 得到的责任度，关于满足 φ_j≥0、Σ_jφ_j=1 且 σ_j²&gt;0 的参数最大化以下 ELBO：
         </p>
         <FormulaCard
           title="GMM 的 ELBO"
@@ -50,7 +50,7 @@ export default function GMMRevisitedPage() {
               display
             />
           }
-          description="把高斯密度的表达式代入，然后对 μ_j、σ_j² 和 φ_j 分别求导并令导数为零。"
+          description="分母 w_j^(i) 是固定责任度产生的熵项，与本轮待优化参数无关；对 μ_j、σ_j² 和带单纯形约束的 φ_j 优化可得闭式更新。"
         />
 
         <p className="text-gray-700 mt-4">
@@ -94,6 +94,11 @@ export default function GMMRevisitedPage() {
           }
           description="每个分量的权重等于所有样本对其后验概率的平均。"
         />
+
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          若某个分量的有效样本量 N_l=Σ_iw_l^(i) 接近零，更新会数值不稳定；无约束 GMM 还可能令方差趋近零并使似然无界。
+          实践中常使用方差下限、先验或正则化，并比较多次初始化。
+        </p>
       </section>
 
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
@@ -112,7 +117,7 @@ export default function GMMRevisitedPage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>M-step 对加权对数似然求导，得到 φ、μ、σ 的闭式更新。</span>
+            <span>M-step 在有效样本量非零且约束满足时得到 φ、μ、σ² 的闭式更新；退化分量需单独处理。</span>
           </li>
         </ul>
       </section>

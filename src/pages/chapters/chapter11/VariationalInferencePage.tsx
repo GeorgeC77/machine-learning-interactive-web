@@ -1,4 +1,4 @@
-import { ShieldAlert, Cpu, CheckCircle2 , Circle} from 'lucide-react';
+import { ShieldAlert, Cpu, CheckCircle2, Circle } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 
@@ -36,10 +36,14 @@ export default function VariationalInferencePage() {
               display
             />
           }
-          description="最大化 ELBO 相当于同时提高模型似然，并让近似后验 q_φ(z|x) 接近真实后验。"
+          description="对固定 θ，最大化 ELBO 等价于最小化反向 KL(q_φ‖p_θ)；联合优化 θ 与 φ 时，ELBO 在数据拟合与近似误差之间变化，并不保证两项各自单调改善。"
         />
         <p className="text-gray-700 mt-2 text-sm">
           {'文本形式：log p_θ(x) ≥ E_{q_φ(z|x)}[log p_θ(x,z) − log q_φ(z|x)]'}
+        </p>
+        <p className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 text-sm text-violet-800">
+          变分 EM 通常为每个样本优化局部变分参数；VAE 则用共享编码器直接预测 q_φ(z|x) 的参数，这称为摊销推断。
+          更快的推断会引入受限分布族与摊销带来的近似误差。
         </p>
       </section>
 
@@ -49,7 +53,7 @@ export default function VariationalInferencePage() {
           变分自编码器是变分推断与深度学习的结合。它用神经网络参数化：
         </p>
         <ul className="list-disc list-inside space-y-2 text-gray-700 mb-4">
-          <li><strong>编码器（推断网络）</strong>：输入 x，输出近似后验 q_φ(z|x) 的均值和方差。</li>
+          <li><strong>编码器（推断网络）</strong>：输入 x，输出近似后验 q_φ(z|x) 的均值与方差参数（实现中常输出 log 方差）。</li>
           <li><strong>解码器（生成网络）</strong>：输入 z，输出数据分布 p_θ(x|z) 的参数。</li>
         </ul>
 
@@ -61,7 +65,7 @@ export default function VariationalInferencePage() {
               display
             />
           }
-          description="第一项是重构似然，第二项让近似后验接近先验。"
+          description="第一项是期望条件对数似然，常被称为重构项；第二项是相对先验的 KL 惩罚。具体重构损失形式由 p_θ(x|z) 的分布假设决定。"
         />
         <p className="text-gray-700 mt-2 text-sm">
           {'文本形式：E_{q_φ(z|x)}[log p_θ(x|z)] − KL(q_φ(z|x) || p(z))'}
@@ -78,7 +82,7 @@ export default function VariationalInferencePage() {
               display
             />
           }
-          description="这样 z 对参数的依赖变成确定性变换，随机性来自与参数无关的 ε，从而可以使用标准反向传播。"
+          description="对可重参数化的连续分布（此处为对角高斯），随机性来自与参数无关的 ε，因此可对 Monte Carlo ELBO 估计使用低方差路径导数。"
         />
         <p className="text-gray-700 mt-2 text-sm">
           {'文本形式：z = μ_φ(x) + σ_φ(x) ⊙ ε, ε ~ N(0,I)'}
@@ -101,7 +105,7 @@ export default function VariationalInferencePage() {
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>重参数化技巧使 VAE 可以通过反向传播端到端训练。</span>
+            <span>对可重参数化的连续潜变量，重参数化技巧支持用反向传播优化随机 ELBO 估计。</span>
           </li>
         </ul>
       </section>
