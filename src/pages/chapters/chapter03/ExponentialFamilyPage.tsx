@@ -187,6 +187,7 @@ export default function ExponentialFamilyPage() {
           </label>
           <input
             type="range"
+            aria-label="自然参数 eta"
             min={-3}
             max={3}
             step={0.1}

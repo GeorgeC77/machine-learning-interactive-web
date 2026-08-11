@@ -49,11 +49,11 @@ export default function NonlinearSupervisedLearningPage() {
           title="非线性假设函数"
           formula={
             <KaTeX
-              math={String.raw`h(x) = f\bigl(W x + b\bigr)`}
+              math={String.raw`h(x) = W^{[2]} f\bigl(W^{[1]}x+b^{[1]}\bigr)+b^{[2]}`}
               display
             />
           }
-          description="通过引入非线性激活函数 f，模型可以学习更复杂的决策边界。"
+          description="隐藏层先产生非线性特征，再由输出层组合这些特征；仅有一个单调激活的单神经元分类器，其阈值边界仍然是线性的。"
         />
       </section>
 
@@ -75,7 +75,7 @@ export default function NonlinearSupervisedLearningPage() {
           标签为相同类别得 0，不同类别得 1。
         </p>
         <p className="text-gray-700 mb-4">
-          没有任何一条直线能把标签 0 和标签 1 分开。但通过引入隐藏层和非线性激活函数，神经网络可以轻松解决 XOR。
+          没有任何一条直线能把标签 0 和标签 1 分开。但隐藏层配合非线性激活可以表示解决 XOR 所需的非线性决策边界。
         </p>
 
         <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
@@ -137,12 +137,40 @@ function NonlinearFittingDemo() {
     return { a, b };
   }, []);
 
+  const quadraticParams = useMemo(() => {
+    const design = TRUE_POINTS.map((p) => [p.x * p.x, p.x, 1]);
+    const gram = Array.from({ length: 3 }, (_, r) =>
+      Array.from({ length: 3 }, (_, c) => design.reduce((sum, row) => sum + row[r] * row[c], 0)),
+    );
+    const rhs = Array.from({ length: 3 }, (_, r) =>
+      design.reduce((sum, row, i) => sum + row[r] * TRUE_POINTS[i].y, 0),
+    );
+    const augmented = gram.map((row, i) => [...row, rhs[i]]);
+    for (let col = 0; col < 3; col += 1) {
+      let pivotRow = col;
+      for (let row = col + 1; row < 3; row += 1) {
+        if (Math.abs(augmented[row][col]) > Math.abs(augmented[pivotRow][col])) pivotRow = row;
+      }
+      [augmented[col], augmented[pivotRow]] = [augmented[pivotRow], augmented[col]];
+      const pivot = augmented[col][col];
+      for (let j = col; j < 4; j += 1) augmented[col][j] /= pivot;
+      for (let row = 0; row < 3; row += 1) {
+        if (row === col) continue;
+        const factor = augmented[row][col];
+        for (let j = col; j < 4; j += 1) augmented[row][j] -= factor * augmented[col][j];
+      }
+    }
+    return { a: augmented[0][3], b: augmented[1][3], c: augmented[2][3] };
+  }, []);
+
   const predict = (x: number) => {
     if (mode === 'linear') {
       return linearParams.a * x + linearParams.b;
     }
-    return x * x;
+    return quadraticParams.a * x * x + quadraticParams.b * x + quadraticParams.c;
   };
+
+  const mse = TRUE_POINTS.reduce((sum, point) => sum + (predict(point.x) - point.y) ** 2, 0) / TRUE_POINTS.length;
 
   const width = 520;
   const height = 320;
@@ -164,9 +192,11 @@ function NonlinearFittingDemo() {
 
   return (
     <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
-      <div className="flex justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         <button
+          type="button"
           onClick={() => setMode('linear')}
+          aria-pressed={mode === 'linear'}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             mode === 'linear' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
@@ -174,7 +204,9 @@ function NonlinearFittingDemo() {
           线性模型 y = ax + b
         </button>
         <button
+          type="button"
           onClick={() => setMode('quadratic')}
+          aria-pressed={mode === 'quadratic'}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             mode === 'quadratic' ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
@@ -183,7 +215,8 @@ function NonlinearFittingDemo() {
         </button>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 320 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 320 }} role="img" aria-label={`${mode === 'linear' ? '线性' : '二次'}最小二乘拟合曲线`}>
+        <title>{mode === 'linear' ? '线性最小二乘拟合' : '二次最小二乘拟合'}</title>
         {/* grid */}
         {[-3, -2, -1, 0, 1, 2, 3].map((x) => (
           <line key={`v-${x}`} x1={xScale(x)} y1={yScale(yMin)} x2={xScale(x)} y2={yScale(yMax)} stroke="#e5e7eb" />
@@ -204,8 +237,8 @@ function NonlinearFittingDemo() {
 
       <div className="text-sm text-gray-600">
         {mode === 'linear'
-          ? `线性最佳拟合：y = ${linearParams.a.toFixed(2)}x + ${linearParams.b.toFixed(2)}。可以看到直线无法捕捉抛物线形状。`
-          : '二次模型 y = x² 完美拟合数据。非线性模型能捕捉数据中的曲线关系。'}
+          ? `线性最小二乘：y = ${linearParams.a.toFixed(2)}x + ${linearParams.b.toFixed(2)}，MSE = ${mse.toFixed(2)}。直线无法捕捉抛物线形状。`
+          : `二次最小二乘：y = ${quadraticParams.a.toFixed(2)}x² + ${quadraticParams.b.toFixed(2)}x + ${quadraticParams.c.toFixed(2)}，MSE = ${mse.toExponential(2)}。`}
       </div>
     </div>
   );

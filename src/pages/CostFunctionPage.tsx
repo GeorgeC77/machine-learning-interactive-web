@@ -624,7 +624,8 @@ export default function CostFunctionPage() {
 
         <p className="text-gray-700 text-sm mt-4">
           调整下方&quot;参数控制&quot;面板中的滑块，观察红色虚线长度的变化——
-          当虚线变短时，代价 J(θ) 会减小；当所有虚线都消失（长度为 0），代价就达到了最小值。
+          当这些残差线整体缩短时，代价 J(θ) 会减小。对于当前带噪声的数据，最优直线通常仍会保留非零残差；
+          最小二乘的目标是让残差平方和最小，而不是要求每个残差都变成 0。
         </p>
       </section>
 
@@ -665,6 +666,7 @@ export default function CostFunctionPage() {
                 </label>
                 <input
                   type="range"
+                  aria-label="参数 theta 0"
                   min="-4"
                   max="6"
                   step="0.1"
@@ -684,6 +686,7 @@ export default function CostFunctionPage() {
                 </label>
                 <input
                   type="range"
+                  aria-label="参数 theta 1"
                   min="-0.5"
                   max="4.5"
                   step="0.1"

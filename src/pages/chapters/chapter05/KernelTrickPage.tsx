@@ -193,6 +193,7 @@ function KernelComparisonDemo() {
           </label>
           <input
             type="range"
+            aria-label="向量 x 的第一维"
             min={-1}
             max={1}
             step={0.05}
@@ -207,6 +208,7 @@ function KernelComparisonDemo() {
           </label>
           <input
             type="range"
+            aria-label="向量 x 的第二维"
             min={-1}
             max={1}
             step={0.05}

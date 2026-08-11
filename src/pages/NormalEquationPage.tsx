@@ -398,6 +398,7 @@ export default function NormalEquationPage() {
                   <label className="block text-sm font-medium text-dark-gray mb-2">数据点数量: {pointCount}</label>
                   <input
                     type="range"
+                    aria-label="数据点数量"
                     min={5}
                     max={50}
                     value={pointCount}
@@ -461,8 +462,9 @@ export default function NormalEquationPage() {
           />
         </div>
         <p className="text-dark-gray leading-relaxed">
-          这样假设函数可以统一写成矩阵形式：{' '}
-          <KaTeX math={String.raw`h_\theta(x) = X\theta`} />，其中 θ 是 (n+1) × 1 的参数向量。
+          这样全部训练样本的预测可以统一写成矩阵形式：{' '}
+          <KaTeX math={String.raw`\hat y = X\theta`} />，其中 θ 是 (n+1) × 1 的参数向量；
+          对单个样本仍写作 <KaTeX math={String.raw`h_\theta(x)=\theta^T x`} />。
         </p>
       </section>
     </div>

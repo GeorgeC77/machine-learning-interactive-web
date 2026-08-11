@@ -43,8 +43,8 @@ export default function VectorizationPage() {
         />
 
         <p className="text-gray-700 mb-4">
-          一次矩阵乘法就可以同时处理批量中的所有样本，这比循环快数十倍甚至数百倍，
-          尤其在使用 GPU 时优势更加明显。
+          一次矩阵乘法就可以同时处理批量中的所有样本。与解释器层面的逐样本循环相比，
+          它在批量较大并使用优化线性代数库或 GPU 时通常更快；实际加速比取决于矩阵规模、硬件和实现。
         </p>
       </section>
 
@@ -52,7 +52,7 @@ export default function VectorizationPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：矩阵乘法与批量计算</h2>
         <p className="text-gray-700 mb-4">
-          下面展示了如何把 4 个样本组成一个输入矩阵 X，再通过矩阵乘法一次性得到所有样本的输出。
+          下面展示如何把最多 4 个样本组成输入矩阵 X，再通过矩阵乘法一次性得到当前批量的全部输出。
         </p>
         <VectorizationDemo />
       </section>
@@ -124,6 +124,10 @@ function VectorizationDemo() {
   );
 
   const outputs = samples.map((x) => W[0] * x[0] + W[1] * x[1] + b);
+  const visibleSamples = samples.slice(0, batchSize);
+  const visibleOutputs = outputs.slice(0, batchSize);
+  const xMatrix = String.raw`X=\begin{bmatrix}${visibleSamples.map((x) => x[0].toFixed(1)).join(' & ')} \\ ${visibleSamples.map((x) => x[1].toFixed(1)).join(' & ')}\end{bmatrix}`;
+  const zMatrix = String.raw`Z=\begin{bmatrix}${visibleOutputs.map((z) => z.toFixed(2)).join(' & ')}\end{bmatrix}`;
 
   return (
     <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
@@ -133,6 +137,7 @@ function VectorizationDemo() {
         </label>
         <input
           type="range"
+          aria-label="批量大小"
           min={1}
           max={4}
           step={1}
@@ -144,6 +149,7 @@ function VectorizationDemo() {
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm text-left">
+          <caption className="sr-only">逐样本计算结果，用于核对向量化矩阵运算</caption>
           <thead>
             <tr className="text-gray-500 border-b border-gray-200">
               <th className="py-2 px-3">样本</th>
@@ -153,7 +159,7 @@ function VectorizationDemo() {
             </tr>
           </thead>
           <tbody>
-            {samples.slice(0, batchSize).map((x, i) => (
+            {visibleSamples.map((x, i) => (
               <tr key={i} className="border-b border-gray-100">
                 <td className="py-2 px-3 font-medium">{i + 1}</td>
                 <td className="py-2 px-3 font-mono">[{x[0].toFixed(1)}, {x[1].toFixed(1)}]</td>
@@ -169,11 +175,16 @@ function VectorizationDemo() {
 
       <div className="bg-white rounded-lg p-4 border border-gray-200">
         <p className="text-sm text-gray-700 mb-2">
-          向量化形式：把所有样本堆叠成矩阵 X，
+          当前批量的矩阵形状为 <span className="font-mono">X∈ℝ<sup>2×{batchSize}</sup></span>、
+          <span className="font-mono">W∈ℝ<sup>1×2</sup></span>、<span className="font-mono">Z∈ℝ<sup>1×{batchSize}</sup></span>：
         </p>
-        <KaTeX math={String.raw`Z = W X + b`} display />
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="overflow-x-auto"><KaTeX math={xMatrix} display /></div>
+          <div className="overflow-x-auto"><KaTeX math={zMatrix} display /></div>
+        </div>
+        <KaTeX math={String.raw`Z = W X + b\mathbf{1}^{T}`} display />
         <p className="text-sm text-gray-600 mt-2">
-          一次矩阵乘法即可得到批量中所有样本的输出，而不是用循环逐个计算。
+          其中 <KaTeX math={String.raw`\mathbf{1}\in\mathbb{R}^{m}`} />；写成代码时，框架通常通过广播自动把偏置 b 加到每一列。
         </p>
       </div>
     </div>

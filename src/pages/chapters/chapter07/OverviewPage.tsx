@@ -32,7 +32,7 @@ export default function OverviewPage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">核心思想</h2>
         <p className="text-gray-700 mb-4">
-          神经网络通过组合大量简单的非线性神经元，可以逼近任意复杂的函数。
+          在满足连续性、紧致定义域等条件且网络容量足够时，神经网络可以把目标函数逼近到任意给定精度。
           深层网络的强大之处在于：每一层都在前一层的基础上学习更抽象的表示。
         </p>
         <p className="text-gray-700 mb-4">
@@ -54,6 +54,16 @@ export default function OverviewPage() {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">完成本章后，你应该能够</h2>
+        <ul className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">解释非线性激活为何能打破多层线性变换的“线性坍塌”。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">按矩阵维度写出全连接层、残差块和批量前向传播。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">沿计算图使用链式法则，手算一层与两层网络的参数梯度。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">区分卷积、归一化、残差连接等模块解决的不同问题。</li>
+        </ul>
       </section>
 
       {/* Chapter roadmap */}

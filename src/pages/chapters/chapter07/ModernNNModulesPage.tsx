@@ -92,8 +92,8 @@ export default function ModernNNModulesPage() {
           <h2 className="text-2xl font-bold text-gray-900">层归一化：稳定数值尺度</h2>
         </div>
         <p className="text-gray-700 mb-4">
-          层归一化把向量调整到均值为 0、标准差为 1 的分布，再通过可学习的缩放 <KaTeX math={String.raw`\gamma`} display={false} /> 和平移 <KaTeX math={String.raw`\beta`} display={false} /> 恢复表达能力。
-          它对同一层内所有神经元做归一化，常用于 Transformer 等序列模型。
+          层归一化按单个样本的指定特征维度计算均值与方差，再通过可学习的缩放 <KaTeX math={String.raw`\gamma`} display={false} /> 和平移 <KaTeX math={String.raw`\beta`} display={false} /> 恢复表达能力。
+          它不依赖同一批量中的其他样本，常用于 Transformer 等序列模型。
         </p>
 
         <FormulaCard
@@ -102,14 +102,15 @@ export default function ModernNNModulesPage() {
             <KaTeX
               math={String.raw`
                 \begin{aligned}
-                \mathrm{LN\text{-}S}(z) &= \frac{z - \hat{\mu}}{\hat{\sigma}} \\
-                \mathrm{LN}(z) &= \gamma \cdot \mathrm{LN\text{-}S}(z) + \beta
+                \hat{\mu} &= \frac{1}{d}\sum_{j=1}^{d}z_j, \qquad
+                \hat{\sigma}^{2}=\frac{1}{d}\sum_{j=1}^{d}(z_j-\hat{\mu})^2 \\
+                \mathrm{LN}(z_j) &= \gamma_j\frac{z_j-\hat{\mu}}{\sqrt{\hat{\sigma}^{2}+\epsilon}}+\beta_j
                 \end{aligned}
               `}
               display
             />
           }
-          description="注意：这里除以 m 而非 m-1，是因为 LayerNorm 使用当前特征维度上的归一化统计量，使标准化后的向量具有约 0 均值和 1 方差；它并不是为了让输出平方和为 1。"
+          description="这里 d 是参与归一化的特征数，ε 防止方差为 0 时发生除零。LayerNorm 使用总体方差形式除以 d，而不是无偏样本方差中的 d−1。"
         />
 
         <div className="mt-6">
@@ -136,6 +137,10 @@ export default function ModernNNModulesPage() {
           description="卷积核 K 在输入 I 上滑动，逐元素相乘再求和。"
         />
 
+        <p className="text-xs text-gray-500 mt-3">
+          深度学习库通常实现不翻转卷积核的互相关（cross-correlation），但习惯上仍称为“卷积”；本页公式与演示采用这一约定。
+        </p>
+
         {/* Interactive demo */}
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">交互演示：卷积核滑动</h3>
@@ -159,13 +164,13 @@ export default function ModernNNModulesPage() {
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
             <h3 className="font-semibold text-emerald-800 mb-2">Dropout</h3>
             <p className="text-sm text-gray-700">
-              训练时随机丢弃部分神经元，防止网络过度依赖某些特征，减少过拟合。
+              训练时随机屏蔽部分激活，减少网络对单一路径的依赖，可作为缓解过拟合的正则化方法。
             </p>
           </div>
           <div className="bg-violet-50 rounded-lg p-4 border border-violet-200">
             <h3 className="font-semibold text-violet-800 mb-2">批归一化（BatchNorm）</h3>
             <p className="text-sm text-gray-700">
-              对每个小批量数据做归一化，稳定训练过程，允许使用更大的学习率。与层归一化不同，它在“批次”维度上求统计量。
+              在小批量上估计每个通道或特征的统计量，通常能稳定训练并支持较大的学习率。与层归一化不同，它依赖批次统计量。
             </p>
           </div>
           <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
@@ -250,14 +255,14 @@ function ResidualDemo() {
               <span>输入 z</span>
               <span className="text-blue-600">{z.toFixed(2)}</span>
             </label>
-            <Slider min={-3} max={3} step={0.1} value={input} onValueChange={setInput} />
+            <Slider aria-label="残差块输入 z" min={-3} max={3} step={0.1} value={input} onValueChange={setInput} />
           </div>
           <div>
             <label className="flex justify-between text-sm font-medium text-gray-700 mb-1">
               <span>残差分支强度（退化程度）</span>
               <span className="text-blue-600">{degradation[0].toFixed(2)}</span>
             </label>
-            <Slider min={0} max={1.5} step={0.05} value={degradation} onValueChange={setDegradation} />
+            <Slider aria-label="残差分支强度" min={0} max={1.5} step={0.05} value={degradation} onValueChange={setDegradation} />
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-2 text-sm">
@@ -276,7 +281,8 @@ function ResidualDemo() {
           </div>
         </div>
 
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 260 }}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 260 }} role="img" aria-label="残差连接与普通分支输出对比">
+          <title>残差连接输出对比</title>
           {[-4, -3, -2, -1, 0, 1, 2, 3, 4].map((x) => (
             <line key={`v-${x}`} x1={xScale(x)} y1={yScale(yMin)} x2={xScale(x)} y2={yScale(yMax)} stroke="#e5e7eb" />
           ))}
@@ -307,7 +313,7 @@ function ResidualDemo() {
 
       <p className="text-sm text-gray-600">
         当残差分支 <KaTeX math={String.raw`F(z)`} display={false} /> 很小时，有残差的输出（蓝线）仍然贴近恒等映射 <KaTeX math={String.raw`y=z`} display={false} />（灰虚线），
-        因此深层网络即使学习困难也不会完全丢失信号；而无残差的输出（红线）则被压缩到 0 附近。
+        因此残差块保留了一条直接传递输入和梯度的路径；而无残差的输出（红线）在本演示中会被压缩到 0 附近。
       </p>
     </div>
   );
@@ -344,6 +350,7 @@ function LayerNormDemo() {
                 <span className="text-blue-600">{v.toFixed(2)}</span>
               </label>
               <Slider
+                aria-label={`层归一化输入 z ${i + 1}`}
                 min={-4}
                 max={4}
                 step={0.1}
@@ -364,14 +371,14 @@ function LayerNormDemo() {
               <span>缩放 γ</span>
               <span className="text-violet-600">{gamma[0].toFixed(2)}</span>
             </label>
-            <Slider min={0.1} max={2} step={0.05} value={gamma} onValueChange={setGamma} />
+            <Slider aria-label="层归一化缩放 gamma" min={0.1} max={2} step={0.05} value={gamma} onValueChange={setGamma} />
           </div>
           <div>
             <label className="flex justify-between text-sm font-medium text-gray-700 mb-1">
               <span>平移 β</span>
               <span className="text-violet-600">{beta[0].toFixed(2)}</span>
             </label>
-            <Slider min={-2} max={2} step={0.05} value={beta} onValueChange={setBeta} />
+            <Slider aria-label="层归一化平移 beta" min={-2} max={2} step={0.05} value={beta} onValueChange={setBeta} />
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-gray-200 text-sm space-y-2">
@@ -440,6 +447,7 @@ function LayerNormDemo() {
 
       <p className="text-sm text-gray-600">
         先把向量归一化到 0 均值、1 标准差，再通过 γ 和 β 恢复模型想要的尺度和偏移。
+        为便于观察，本演示让所有维度共享一对标量 γ、β；实际网络通常为每个特征分别学习 γⱼ、βⱼ。
         注意均值与标准差本身也是输入的函数，反向传播时需要对它们求导。
       </p>
     </div>
@@ -467,15 +475,17 @@ function ConvolutionDemo() {
                 return (
                   <button
                     key={`${r}-${c}`}
+                    type="button"
+                    disabled={r < 1 || r > 3 || c < 1 || c > 3}
+                    aria-label={r >= 1 && r <= 3 && c >= 1 && c <= 3 ? `选择卷积核中心，第 ${r + 1} 行第 ${c + 1} 列` : `边界像素，第 ${r + 1} 行第 ${c + 1} 列`}
+                    aria-pressed={r === row && c === col}
                     onClick={() => {
-                      if (r >= 1 && r <= 3 && c >= 1 && c <= 3) {
-                        setRow(r);
-                        setCol(c);
-                      }
+                      setRow(r);
+                      setCol(c);
                     }}
                     className={`w-10 h-10 flex items-center justify-center text-xs font-medium rounded transition-colors ${
                       inKernel ? 'bg-blue-300 text-blue-900' : 'bg-white text-gray-700 border border-gray-200'
-                    } ${r >= 1 && r <= 3 && c >= 1 && c <= 3 ? 'cursor-pointer hover:bg-blue-100' : 'cursor-default'}`}
+                    } ${r >= 1 && r <= 3 && c >= 1 && c <= 3 ? 'cursor-pointer hover:bg-blue-100' : 'cursor-default disabled:opacity-70'}`}
                   >
                     {val}
                   </button>

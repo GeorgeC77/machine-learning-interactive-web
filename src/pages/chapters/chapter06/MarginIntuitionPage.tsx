@@ -214,7 +214,8 @@ function SVMDemo({
   const yScale = (y: number) => padding + (1 - (y - yMin) / (yMax - yMin)) * (height - 2 * padding);
 
   const norm = Math.sqrt(w1 * w1 + w2 * w2);
-  const signedValue = (x: number, y: number) => (w1 * x + w2 * y + b) / norm;
+  const signedValue = (x: number, y: number) =>
+    isDegenerate ? null : (w1 * x + w2 * y + b) / norm;
 
   // Decision boundary: w1*x + w2*y + b = 0  =>  y = -(w1*x + b) / w2
   const decisionPoints: { x: number; y: number }[] = [];
@@ -250,19 +251,19 @@ function SVMDemo({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             w₁ = <span className="font-mono">{w1.toFixed(2)}</span>
           </label>
-          <input type="range" min={-3} max={3} step={0.1} value={w1} onChange={(e) => setW1(Number(e.target.value))} className="w-full accent-blue-500" />
+          <input type="range" aria-label="权重 w1" min={-3} max={3} step={0.1} value={w1} onChange={(e) => setW1(Number(e.target.value))} className="w-full accent-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             w₂ = <span className="font-mono">{w2.toFixed(2)}</span>
           </label>
-          <input type="range" min={-3} max={3} step={0.1} value={w2} onChange={(e) => setW2(Number(e.target.value))} className="w-full accent-blue-500" />
+          <input type="range" aria-label="权重 w2" min={-3} max={3} step={0.1} value={w2} onChange={(e) => setW2(Number(e.target.value))} className="w-full accent-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             b = <span className="font-mono">{b.toFixed(2)}</span>
           </label>
-          <input type="range" min={-8} max={2} step={0.1} value={b} onChange={(e) => setB(Number(e.target.value))} className="w-full accent-blue-500" />
+          <input type="range" aria-label="偏置 b" min={-8} max={2} step={0.1} value={b} onChange={(e) => setB(Number(e.target.value))} className="w-full accent-blue-500" />
         </div>
       </div>
 
@@ -310,7 +311,8 @@ function SVMDemo({
         {/* points */}
         {POINTS.map((p, i) => {
           const isSV = allCorrect && supportVectors.includes(i);
-          const isMisclassified = p.label * signedValue(p.x, p.y) <= 0;
+          const signed = signedValue(p.x, p.y);
+          const isMisclassified = signed !== null && p.label * signed <= 0;
           return (
             <g key={i}>
               <circle

@@ -20,7 +20,7 @@ function polyDesignMatrix(xs: number[], degree: number): number[][] {
 }
 
 /** Solve regularized normal equations with small ridge stabilization. */
-function solvePseudoInverse(X: number[][], y: number[]): number[] {
+function solveRegularizedNormalEquation(X: number[][], y: number[]): number[] {
   /* Gram matrix approach with ridge-like stabilization */
   const n = X[0].length;
   const m = X.length;
@@ -82,8 +82,16 @@ function generateData(seed = 42) {
   return pts;
 }
 
+function underlyingFunction(x: number) {
+  return 2 + 1.5 * x - 0.12 * x * x;
+}
+
 function generateTestData(seed = 1234) {
-  return generateData(seed).map((p) => ({ ...p, x: Math.max(0.1, Math.min(9.9, p.x + 0.25)) }));
+  return generateData(seed).map((p) => {
+    const shiftedX = Math.max(0.1, Math.min(9.9, p.x + 0.25));
+    const noise = p.y - underlyingFunction(p.x);
+    return { x: shiftedX, y: underlyingFunction(shiftedX) + noise };
+  });
 }
 
 const FIXED_Y_DOMAIN: [number, number] = [-4, 10];
@@ -283,12 +291,12 @@ export default function OverfittingPage() {
     const base = generateData(seed);
     const train = base.map((p) => ({
       ...p,
-      y: 2 + 1.5 * p.x - 0.12 * p.x * p.x + (p.y - (2 + 1.5 * p.x - 0.12 * p.x * p.x)) * noiseLevel,
+      y: underlyingFunction(p.x) + (p.y - underlyingFunction(p.x)) * noiseLevel,
     }));
     const testBase = generateTestData(seed + 999);
     const test = testBase.map((p) => ({
       ...p,
-      y: 2 + 1.5 * p.x - 0.12 * p.x * p.x + (p.y - (2 + 1.5 * p.x - 0.12 * p.x * p.x)) * noiseLevel,
+      y: underlyingFunction(p.x) + (p.y - underlyingFunction(p.x)) * noiseLevel,
     }));
     return { points: train, testPoints: test };
   }, [seed, noiseLevel]);
@@ -298,9 +306,9 @@ export default function OverfittingPage() {
   const testXs = useMemo(() => testPoints.map((p) => p.x), [testPoints]);
   const testYs = useMemo(() => testPoints.map((p) => p.y), [testPoints]);
 
-  const theta1 = useMemo(() => solvePseudoInverse(polyDesignMatrix(xs, 1), ys), [xs, ys]);
-  const theta2 = useMemo(() => solvePseudoInverse(polyDesignMatrix(xs, 2), ys), [xs, ys]);
-  const thetaOver = useMemo(() => solvePseudoInverse(polyDesignMatrix(xs, degree), ys), [xs, ys, degree]);
+  const theta1 = useMemo(() => solveRegularizedNormalEquation(polyDesignMatrix(xs, 1), ys), [xs, ys]);
+  const theta2 = useMemo(() => solveRegularizedNormalEquation(polyDesignMatrix(xs, 2), ys), [xs, ys]);
+  const thetaOver = useMemo(() => solveRegularizedNormalEquation(polyDesignMatrix(xs, degree), ys), [xs, ys, degree]);
 
   const trainMse1 = useMemo(() => mse(ys, xs.map((x) => predictPoly(theta1, x))), [ys, xs, theta1]);
   const trainMse2 = useMemo(() => mse(ys, xs.map((x) => predictPoly(theta2, x))), [ys, xs, theta2]);
@@ -544,6 +552,7 @@ export default function OverfittingPage() {
                   </label>
                   <input
                     type="range"
+                    aria-label="噪声强度"
                     min={0}
                     max={2.5}
                     step={0.1}
@@ -563,6 +572,7 @@ export default function OverfittingPage() {
                   </label>
                   <input
                     type="range"
+                    aria-label="过拟合多项式次数"
                     min={1}
                     max={20}
                     step={1}

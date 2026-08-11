@@ -113,7 +113,7 @@ const PRESETS: Preset[] = [
     alpha: 0.2,
     beta: 0.92,
     steps: 100,
-    behavior: '批量梯度下降配合动量，稳步收敛，决策边界平滑移向最优分类面',
+    behavior: '批量梯度下降配合动量，损失稳步下降，决策边界平滑移动并逐渐稳定',
     color: '#00b4a6',
   },
   {
@@ -123,7 +123,7 @@ const PRESETS: Preset[] = [
     alpha: 0.01,
     beta: 0.92,
     steps: 100,
-    behavior: '学习率过小，参数更新极慢，100 步后仍远离最优解',
+    behavior: '学习率过小，参数更新极慢，100 步后决策边界仍未稳定',
     color: '#f08a5d',
   },
   {
@@ -133,7 +133,7 @@ const PRESETS: Preset[] = [
     alpha: 0.02,
     beta: 0,
     steps: 80,
-    behavior: '每次只用一个样本更新，边界在正确方向附近震荡、带噪声，但总体仍向最优解靠近',
+    behavior: '每次只用一个样本更新，边界带有噪声和震荡，但总体朝正确分隔方向移动',
     color: '#e25b5b',
   },
 ];
@@ -578,7 +578,7 @@ export default function GradientDescentPage() {
                 <h4 className="font-semibold text-red-800 text-sm">随机下山</h4>
               </div>
               <p className="text-xs text-red-700 leading-relaxed">
-                随机梯度下降每次只看一个样本，方向带有噪声，像在山坡上跌跌撞撞。虽然总体趋势正确，但边界会在最优解附近震荡。
+                随机梯度下降每次只看一个样本，方向带有噪声，像在山坡上跌跌撞撞。虽然总体趋势正确，但当前可分数据上的边界会持续轻微变化。
               </p>
             </div>
           </div>
@@ -747,6 +747,7 @@ export default function GradientDescentPage() {
             <span className="text-sm text-gray-500 whitespace-nowrap">步数:</span>
             <input
               type="range"
+              aria-label="逻辑回归梯度下降步数"
               min={0}
               max={history.length - 1}
               value={Math.min(currentStep, history.length - 1)}
@@ -812,7 +813,7 @@ export default function GradientDescentPage() {
           <div className="bg-white rounded-xl shadow-card border border-gray-200 p-4">
             <h3 className="font-semibold text-gray-900 mb-2">随机梯度下降（SGD）</h3>
             <p className="text-sm text-gray-700 leading-relaxed mb-3">
-              每次只随机选取一个样本，根据该样本的梯度立即更新参数。单步方向有噪声，但总体向最优解靠近，适合大规模数据。
+              每次只随机选取一个样本，根据该样本的梯度立即更新参数。单步方向有噪声，但总体会降低损失，适合大规模数据。
             </p>
             <div className="formula-block">
               <KaTeX
@@ -906,7 +907,7 @@ export default function GradientDescentPage() {
             <div className="bg-white/80 border border-red-200 rounded-lg p-4">
               <h4 className="font-semibold text-red-800 text-sm mb-2">SGD：跌跌撞撞但总体正确</h4>
               <p className="text-xs text-red-700 leading-relaxed">
-                每次只看一个样本，单步方向可能偏离平均方向，边界在左右摇摆。但长期来看，它仍向最优解收敛，且计算代价更低。
+                每次只看一个样本，单步方向可能偏离平均方向，边界在左右摇摆。长期来看损失总体下降，但在线性可分且无正则化时参数不会收敛到有限值。
               </p>
             </div>
           </div>
@@ -951,7 +952,7 @@ export default function GradientDescentPage() {
                       <span className="text-orange-600 font-medium">收敛极慢，边界仍靠近数据集中心</span>
                     )}
                     {p.mode === 'sgd' && (
-                      <span className="text-red-600 font-medium">边界震荡，但总体趋势向最优解靠近</span>
+                      <span className="text-red-600 font-medium">边界震荡，但损失总体呈下降趋势</span>
                     )}
                   </td>
                 </tr>

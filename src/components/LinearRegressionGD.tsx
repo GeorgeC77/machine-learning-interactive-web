@@ -415,6 +415,7 @@ export default function LinearRegressionGD() {
           </label>
           <input
             type="range"
+            aria-label="线性回归初始参数 theta 0"
             min="-2"
             max="4"
             step="0.1"
@@ -429,6 +430,7 @@ export default function LinearRegressionGD() {
           </label>
           <input
             type="range"
+            aria-label="线性回归初始参数 theta 1"
             min="0"
             max="3.5"
             step="0.1"
@@ -443,6 +445,7 @@ export default function LinearRegressionGD() {
           </label>
           <input
             type="range"
+            aria-label="线性回归学习率 alpha"
             min="0.001"
             max="0.2"
             step="0.001"
@@ -478,6 +481,7 @@ export default function LinearRegressionGD() {
           <span className="text-sm text-gray-500 whitespace-nowrap">步数:</span>
           <input
             type="range"
+            aria-label="线性回归演示步数"
             min={0}
             max={history.length - 1}
             value={Math.min(currentStep, history.length - 1)}

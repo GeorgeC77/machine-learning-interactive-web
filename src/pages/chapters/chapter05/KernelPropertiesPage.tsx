@@ -180,6 +180,7 @@ function RBFKernelDemo() {
         </label>
         <input
           type="range"
+          aria-label="RBF 核宽度 sigma"
           min={0.1}
           max={2}
           step={0.1}

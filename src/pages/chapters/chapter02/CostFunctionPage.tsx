@@ -477,6 +477,7 @@ export default function CostFunctionPage() {
               </label>
               <input
                 type="range"
+                aria-label="预测概率"
                 min="0.01"
                 max="0.99"
                 step="0.01"

@@ -220,25 +220,25 @@ function GDA1DDemo() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             类别 0 均值 μ₀ = <span className="font-mono">{mu0.toFixed(1)}</span>
           </label>
-          <input type="range" min={-4} max={4} step={0.1} value={mu0} onChange={(e) => setMu0(Number(e.target.value))} className="w-full accent-blue-500" />
+          <input type="range" aria-label="类别 0 均值" min={-4} max={4} step={0.1} value={mu0} onChange={(e) => setMu0(Number(e.target.value))} className="w-full accent-blue-500" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             类别 1 均值 μ₁ = <span className="font-mono">{mu1.toFixed(1)}</span>
           </label>
-          <input type="range" min={-4} max={4} step={0.1} value={mu1} onChange={(e) => setMu1(Number(e.target.value))} className="w-full accent-emerald-500" />
+          <input type="range" aria-label="类别 1 均值" min={-4} max={4} step={0.1} value={mu1} onChange={(e) => setMu1(Number(e.target.value))} className="w-full accent-emerald-500" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             标准差 σ = <span className="font-mono">{sigma.toFixed(1)}</span>
           </label>
-          <input type="range" min={0.3} max={2} step={0.1} value={sigma} onChange={(e) => setSigma(Number(e.target.value))} className="w-full accent-violet-500" />
+          <input type="range" aria-label="标准差 sigma" min={0.3} max={2} step={0.1} value={sigma} onChange={(e) => setSigma(Number(e.target.value))} className="w-full accent-violet-500" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             正类先验 φ = <span className="font-mono">{phi.toFixed(2)}</span>
           </label>
-          <input type="range" min={0.05} max={0.95} step={0.05} value={phi} onChange={(e) => setPhi(Number(e.target.value))} className="w-full accent-amber-500" />
+          <input type="range" aria-label="正类先验 phi" min={0.05} max={0.95} step={0.05} value={phi} onChange={(e) => setPhi(Number(e.target.value))} className="w-full accent-amber-500" />
         </div>
       </div>
 

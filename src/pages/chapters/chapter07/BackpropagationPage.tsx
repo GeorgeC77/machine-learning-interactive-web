@@ -136,6 +136,8 @@ function ComputationGraphDemo() {
   const dL_dz = dL_da * da_dz;
   const dL_dw = dL_dz * dz_dw;
   const dL_db = dL_dz * dz_db;
+  const dL_dx = dL_dz * w[0];
+  const dL_dy = -dL_da;
 
   const width = 980;
   const height = 520;
@@ -143,10 +145,10 @@ function ComputationGraphDemo() {
   const nodes = {
     w: { cx: 90, cy: 110, label: 'w', value: w[0], grad: step >= 4 ? dL_dw : 0 },
     b: { cx: 90, cy: 260, label: 'b', value: b[0], grad: step >= 4 ? dL_db : 0 },
-    x: { cx: 90, cy: 410, label: 'x', value: x[0], grad: 0 },
+    x: { cx: 90, cy: 410, label: 'x', value: x[0], grad: step >= 4 ? dL_dx : 0 },
     z: { cx: 360, cy: 260, label: 'z', value: z, grad: step >= 3 ? dL_dz : 0 },
     a: { cx: 620, cy: 260, label: 'a', value: a, grad: step >= 2 ? dL_da : 0 },
-    y: { cx: 620, cy: 410, label: 'y', value: y[0], grad: 0 },
+    y: { cx: 620, cy: 410, label: 'y', value: y[0], grad: step >= 1 ? dL_dy : 0 },
     L: { cx: 860, cy: 260, label: 'L', value: loss, grad: step >= 1 ? 1 : 0 },
   };
 
@@ -201,28 +203,28 @@ function ComputationGraphDemo() {
             <span>输入 x</span>
             <span className="text-blue-600">{x[0].toFixed(6)}</span>
           </label>
-          <Slider min={-3} max={3} step={0.1} value={x} onValueChange={setX} />
+          <Slider aria-label="单神经元输入 x" min={-3} max={3} step={0.1} value={x} onValueChange={setX} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>权重 w</span>
             <span className="text-blue-600">{w[0].toFixed(6)}</span>
           </label>
-          <Slider min={-3} max={3} step={0.1} value={w} onValueChange={setW} />
+          <Slider aria-label="单神经元权重 w" min={-3} max={3} step={0.1} value={w} onValueChange={setW} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>偏置 b</span>
             <span className="text-blue-600">{b[0].toFixed(6)}</span>
           </label>
-          <Slider min={-3} max={3} step={0.1} value={b} onValueChange={setB} />
+          <Slider aria-label="单神经元偏置 b" min={-3} max={3} step={0.1} value={b} onValueChange={setB} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>标签 y</span>
             <span className="text-blue-600">{y[0].toFixed(6)}</span>
           </label>
-          <Slider min={0} max={1} step={0.05} value={y} onValueChange={setY} />
+          <Slider aria-label="单神经元目标 y" min={0} max={1} step={0.05} value={y} onValueChange={setY} />
         </div>
       </div>
 
@@ -254,7 +256,8 @@ function ComputationGraphDemo() {
       </div>
 
       {/* graph */}
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 520 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 520 }} role="img" aria-label="单神经元计算图及反向梯度">
+        <title>单神经元计算图与梯度流</title>
         {/* forward edges (no labels) */}
         {edges.map((e, idx) => {
           const from = nodes[e.from];
@@ -365,6 +368,7 @@ function ComputationGraphDemo() {
             <p>∂L/∂z = {dL_da.toFixed(6)} × {da_dz.toFixed(6)} = {dL_dz.toFixed(6)}</p>
             <p>∂L/∂w = {dL_dz.toFixed(6)} × {dz_dw.toFixed(6)} = {dL_dw.toFixed(6)}</p>
             <p>∂L/∂b = {dL_dz.toFixed(6)} × 1 = {dL_db.toFixed(6)}</p>
+            <p>∂L/∂x = {dL_dz.toFixed(6)} × {w[0].toFixed(6)} = {dL_dx.toFixed(6)}</p>
           </div>
         </div>
       </div>
@@ -401,21 +405,23 @@ function MultiLayerBackpropDemo() {
   const dL_dz1 = dL_da1 * reluPrime;
   const dL_dw1 = dL_dz1 * x[0];
   const dL_db1 = dL_dz1;
+  const dL_dx = dL_dz1 * w1[0];
+  const dL_dy = -dL_da2;
 
   const width = 1080;
   const height = 520;
 
   const nodes = {
-    x: { cx: 90, cy: 390, label: 'x', value: x[0], grad: 0 },
+    x: { cx: 90, cy: 390, label: 'x', value: x[0], grad: step >= 5 ? dL_dx : 0 },
     w1: { cx: 90, cy: 90, label: 'W⁽¹⁾', value: w1[0], grad: step >= 5 ? dL_dw1 : 0 },
     b1: { cx: 90, cy: 240, label: 'b⁽¹⁾', value: b1[0], grad: step >= 5 ? dL_db1 : 0 },
     z1: { cx: 300, cy: 240, label: 'z₁', value: z1, grad: step >= 4 ? dL_dz1 : 0 },
     a1: { cx: 500, cy: 240, label: 'a₁', value: a1, grad: step >= 3 ? dL_da1 : 0 },
-    w2: { cx: 500, cy: 90, label: 'W⁽²⁾', value: w2[0], grad: step >= 5 ? dL_dw2 : 0 },
-    b2: { cx: 500, cy: 390, label: 'b⁽²⁾', value: b2[0], grad: step >= 5 ? dL_db2 : 0 },
+    w2: { cx: 500, cy: 90, label: 'W⁽²⁾', value: w2[0], grad: step >= 2 ? dL_dw2 : 0 },
+    b2: { cx: 500, cy: 390, label: 'b⁽²⁾', value: b2[0], grad: step >= 2 ? dL_db2 : 0 },
     z2: { cx: 710, cy: 240, label: 'z₂', value: z2, grad: step >= 2 ? dL_dz2 : 0 },
     a2: { cx: 910, cy: 240, label: 'a₂', value: a2, grad: step >= 1 ? dL_da2 : 0 },
-    y: { cx: 910, cy: 390, label: 'y', value: y[0], grad: 0 },
+    y: { cx: 910, cy: 390, label: 'y', value: y[0], grad: step >= 1 ? dL_dy : 0 },
     L: { cx: 910, cy: 90, label: 'L', value: loss, grad: step >= 0 ? 1 : 0 },
   };
 
@@ -441,12 +447,14 @@ function MultiLayerBackpropDemo() {
     () => [
       { from: 'L' as NodeKey, to: 'a2' as NodeKey, label: String.raw`\frac{\partial L}{\partial a_2} = ${dL_da2.toFixed(6)}`, show: step >= 1, labelPos: 'left' as const },
       { from: 'a2' as NodeKey, to: 'z2' as NodeKey, label: String.raw`\frac{\partial a_2}{\partial z_2} = ${da2_dz2.toFixed(6)}`, show: step >= 2, labelPos: 'below' as const },
+      { from: 'z2' as NodeKey, to: 'w2' as NodeKey, label: String.raw`\frac{\partial z_2}{\partial W^{[2]}} = ${a1.toFixed(6)}`, show: step >= 2, labelPos: 'left' as const },
+      { from: 'z2' as NodeKey, to: 'b2' as NodeKey, label: String.raw`\frac{\partial z_2}{\partial b^{[2]}} = 1.000000`, show: step >= 2, labelPos: 'right' as const },
       { from: 'z2' as NodeKey, to: 'a1' as NodeKey, label: String.raw`\frac{\partial z_2}{\partial a_1} = ${w2[0].toFixed(6)}`, show: step >= 3, labelPos: 'below' as const },
       { from: 'a1' as NodeKey, to: 'z1' as NodeKey, label: String.raw`\frac{\partial a_1}{\partial z_1} = ${reluPrime.toFixed(6)}`, show: step >= 4, labelPos: 'below' as const },
       { from: 'z1' as NodeKey, to: 'w1' as NodeKey, label: String.raw`\frac{\partial z_1}{\partial W^{[1]}} = ${x[0].toFixed(6)}`, show: step >= 5, labelPos: 'left' as const },
       { from: 'z1' as NodeKey, to: 'b1' as NodeKey, label: String.raw`\frac{\partial z_1}{\partial b^{[1]}} = 1.000000`, show: step >= 5, labelPos: 'left' as const },
     ],
-    [step, dL_da2, da2_dz2, w2, reluPrime, x]
+    [step, dL_da2, da2_dz2, a1, w2, reluPrime, x]
   );
 
   function arrowPath(x1: number, y1: number, x2: number, y2: number, offset = 34) {
@@ -493,42 +501,42 @@ function MultiLayerBackpropDemo() {
             <span>输入 x</span>
             <span className="text-blue-600">{x[0].toFixed(6)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={x} onValueChange={setX} />
+          <Slider aria-label="两层网络输入 x" min={-2} max={2} step={0.1} value={x} onValueChange={setX} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>第一层权重 W⁽¹⁾</span>
             <span className="text-blue-600">{w1[0].toFixed(6)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={w1} onValueChange={setW1} />
+          <Slider aria-label="第一层权重" min={-2} max={2} step={0.1} value={w1} onValueChange={setW1} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>第一层偏置 b⁽¹⁾</span>
             <span className="text-blue-600">{b1[0].toFixed(6)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={b1} onValueChange={setB1} />
+          <Slider aria-label="第一层偏置" min={-2} max={2} step={0.1} value={b1} onValueChange={setB1} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>第二层权重 W⁽²⁾</span>
             <span className="text-blue-600">{w2[0].toFixed(6)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={w2} onValueChange={setW2} />
+          <Slider aria-label="第二层权重" min={-2} max={2} step={0.1} value={w2} onValueChange={setW2} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>第二层偏置 b⁽²⁾</span>
             <span className="text-blue-600">{b2[0].toFixed(6)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={b2} onValueChange={setB2} />
+          <Slider aria-label="第二层偏置" min={-2} max={2} step={0.1} value={b2} onValueChange={setB2} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>标签 y</span>
             <span className="text-blue-600">{y[0].toFixed(6)}</span>
           </label>
-          <Slider min={0} max={1} step={0.05} value={y} onValueChange={setY} />
+          <Slider aria-label="两层网络目标 y" min={0} max={1} step={0.05} value={y} onValueChange={setY} />
         </div>
       </div>
 
@@ -557,7 +565,8 @@ function MultiLayerBackpropDemo() {
         </button>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 520 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 520 }} role="img" aria-label="两层神经网络计算图及逐层反向梯度">
+        <title>两层神经网络反向传播</title>
         {/* forward edges (no labels) */}
         {forwardEdges.map((e, idx) => {
           const from = nodes[e.from];
@@ -657,7 +666,7 @@ function MultiLayerBackpropDemo() {
         {step === 1 && <p className="text-gray-600">从输出开始：先求损失对输出的梯度 ∂L/∂a₂。</p>}
         {step === 2 && <p className="text-gray-600">穿过 Sigmoid：∂L/∂z₂ = ∂L/∂a₂ · ∂a₂/∂z₂，同时可得到 ∂L/∂W⁽²⁾ 与 ∂L/∂b⁽²⁾。</p>}
         {step === 3 && <p className="text-gray-600">传向隐藏层：∂L/∂a₁ = ∂L/∂z₂ · ∂z₂/∂a₁。</p>}
-        {step === 4 && <p className="text-gray-600">穿过 ReLU：∂L/∂z₁ = ∂L/∂a₁ · ∂a₁/∂z₁（ReLU 在负数处导数为 0，该神经元的梯度被置零）。</p>}
+        {step === 4 && <p className="text-gray-600">穿过 ReLU：∂L/∂z₁ = ∂L/∂a₁ · ∂a₁/∂z₁（本演示约定 ReLU 在 z₁≤0 时导数为 0，此时该神经元的梯度被置零）。</p>}
         {step === 5 && <p className="text-gray-600">到达第一层参数：∂L/∂W⁽¹⁾ = ∂L/∂z₁ · ∂z₁/∂W⁽¹⁾，∂L/∂b⁽¹⁾ = ∂L/∂z₁ · 1。</p>}
       </div>
     </div>

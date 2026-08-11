@@ -767,6 +767,7 @@ export default function NewtonPage() {
                   </label>
                   <input
                     type="range"
+                    aria-label="牛顿法初始点 theta 0"
                     min={-0.5}
                     max={1.5}
                     step={0.1}
@@ -786,6 +787,7 @@ export default function NewtonPage() {
                   </label>
                   <input
                     type="range"
+                    aria-label="梯度上升学习率 alpha"
                     min={0.05}
                     max={1.0}
                     step={0.05}
@@ -805,6 +807,7 @@ export default function NewtonPage() {
                   </label>
                   <input
                     type="range"
+                    aria-label="最大迭代步数"
                     min={3}
                     max={20}
                     step={1}
@@ -861,6 +864,7 @@ export default function NewtonPage() {
                   <span className="text-sm text-gray-500 whitespace-nowrap">步数:</span>
                   <input
                     type="range"
+                    aria-label="牛顿法比较演示步数"
                     min={0}
                     max={maxHistoryLength - 1}
                     value={Math.min(currentStep, maxHistoryLength - 1)}

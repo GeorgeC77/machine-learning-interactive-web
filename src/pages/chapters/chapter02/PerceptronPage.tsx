@@ -173,6 +173,7 @@ export default function PerceptronPage() {
   const [theta0, setTheta0] = useState(-0.5);
   const [theta1, setTheta1] = useState(0.5);
   const [theta2, setTheta2] = useState(-0.8);
+  const thetaRef = useRef<[number, number, number]>([-0.5, 0.5, -0.8]);
   const [isRunning, setIsRunning] = useState(false);
   const [stepCount, setStepCount] = useState(0);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
@@ -187,12 +188,10 @@ export default function PerceptronPage() {
   useEffect(() => {
     if (!isRunning) return;
     let count = 0;
-    let currentTheta0 = theta0;
-    let currentTheta1 = theta1;
-    let currentTheta2 = theta2;
     let index = 0;
 
     const interval = setInterval(() => {
+      const [currentTheta0, currentTheta1, currentTheta2] = thetaRef.current;
       // 先检查是否已全部分类正确；是则停止并提示收敛
       const allCorrect = data.every(
         (p) => (currentTheta0 + currentTheta1 * p.x1 + currentTheta2 * p.x2 >= 0 ? 1 : -1) === p.y,
@@ -218,12 +217,15 @@ export default function PerceptronPage() {
       setHighlightIndex(index % data.length);
 
       if (prediction !== point.y) {
-        currentTheta0 += point.y * 1;
-        currentTheta1 += point.y * point.x1;
-        currentTheta2 += point.y * point.x2;
-        setTheta0(currentTheta0);
-        setTheta1(currentTheta1);
-        setTheta2(currentTheta2);
+        const nextTheta: [number, number, number] = [
+          currentTheta0 + point.y,
+          currentTheta1 + point.y * point.x1,
+          currentTheta2 + point.y * point.x2,
+        ];
+        thetaRef.current = nextTheta;
+        setTheta0(nextTheta[0]);
+        setTheta1(nextTheta[1]);
+        setTheta2(nextTheta[2]);
         count += 1;
         setStepCount((prev) => prev + 1);
       }
@@ -232,13 +234,14 @@ export default function PerceptronPage() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, [isRunning, data, theta0, theta1, theta2]);
+  }, [isRunning, data]);
 
   const handleReset = () => {
     setIsRunning(false);
     setTheta0(-0.5);
     setTheta1(0.5);
     setTheta2(-0.8);
+    thetaRef.current = [-0.5, 0.5, -0.8];
     setStepCount(0);
     setHighlightIndex(null);
     setConverged(false);
@@ -258,7 +261,12 @@ export default function PerceptronPage() {
           max="4"
           step="0.1"
           value={theta0}
-          onChange={(e) => setTheta0(parseFloat(e.target.value))}
+          aria-label="偏置 theta 0"
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            thetaRef.current = [value, thetaRef.current[1], thetaRef.current[2]];
+            setTheta0(value);
+          }}
           disabled={isRunning}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
         />
@@ -273,7 +281,12 @@ export default function PerceptronPage() {
           max="2"
           step="0.1"
           value={theta1}
-          onChange={(e) => setTheta1(parseFloat(e.target.value))}
+          aria-label="权重 theta 1"
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            thetaRef.current = [thetaRef.current[0], value, thetaRef.current[2]];
+            setTheta1(value);
+          }}
           disabled={isRunning}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
         />
@@ -288,7 +301,12 @@ export default function PerceptronPage() {
           max="2"
           step="0.1"
           value={theta2}
-          onChange={(e) => setTheta2(parseFloat(e.target.value))}
+          aria-label="权重 theta 2"
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            thetaRef.current = [thetaRef.current[0], thetaRef.current[1], value];
+            setTheta2(value);
+          }}
           disabled={isRunning}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
         />

@@ -450,6 +450,7 @@ export default function ProbabilisticPage() {
                     </label>
                     <input
                       type="range"
+                      aria-label="噪声标准差 sigma"
                       min={0.3}
                       max={3.0}
                       step={0.1}
@@ -475,7 +476,7 @@ export default function ProbabilisticPage() {
 
             {/* Scatter + noise band panel */}
             <InteractivePanel
-              hint="散点围绕回归线分布，蓝色区域表示 ±2σ 置信区间"
+              hint="散点围绕回归线分布，蓝色区域表示模型假设下的 ±2σ 噪声区间"
               chart={<ScatterNoiseChart sigma={sigma} />}
               controls={
                 <div className="space-y-4">

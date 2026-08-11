@@ -149,7 +149,7 @@ export default function GenerativeVsDiscriminativePage() {
               </li>
               <li className="flex items-start gap-2">
                 <X className="w-4 h-4 text-rose-500" />
-                <span>无法生成数据或处理缺失特征。</span>
+                <span>通常不能直接生成数据；处理缺失特征往往需要插补、缺失指示变量或专门设计的模型。</span>
               </li>
             </ul>
           </div>

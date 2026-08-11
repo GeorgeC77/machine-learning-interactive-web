@@ -122,7 +122,7 @@ export default function SoftmaxAsGLMPage() {
               display
             />
           }
-          description="这就是 Softmax 函数。分母中的 e^{η_k} = 1 正来自上面的参照类别约定；参数存在冗余：所有 θ_j 同减任意向量，预测概率不变，因此也常固定 θ_k = 0。"
+          description="这就是 Softmax 函数。分母中的 e^{η_k} = 1 来自参照类别约定。若为 k 类都保留参数向量，则所有 θ_j 同加或同减任意向量都不改变概率，存在平移冗余；固定 θ_k = 0 后，这个冗余就被消除了。"
         />
 
         <p className="text-gray-700 mb-4">
@@ -220,6 +220,7 @@ function SoftmaxExplorer() {
             </div>
             <input
               type="range"
+              aria-label={`${labels[i]}得分`}
               min={-3}
               max={3}
               step={0.1}

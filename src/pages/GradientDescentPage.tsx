@@ -642,6 +642,7 @@ export default function GradientDescentPage() {
             <span className="text-sm text-gray-500 whitespace-nowrap">步数:</span>
             <input
               type="range"
+              aria-label="线性回归梯度下降步数"
               min={0}
               max={history.length - 1}
               value={Math.min(currentStep, history.length - 1)}

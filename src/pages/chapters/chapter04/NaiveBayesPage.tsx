@@ -106,11 +106,13 @@ export default function NaiveBayesPage() {
       logHam += Math.log(hamProb);
     });
 
-    const spamScore = Math.exp(logSpam);
-    const hamScore = Math.exp(logHam);
+    // 先减去最大对数分数再指数化，避免长文本令两个分数同时下溢为 0。
+    const maxLogScore = Math.max(logSpam, logHam);
+    const spamScore = Math.exp(logSpam - maxLogScore);
+    const hamScore = Math.exp(logHam - maxLogScore);
     const total = spamScore + hamScore;
     return {
-      spamProb: total > 0 ? spamScore / total : 0.5,
+      spamProb: spamScore / total,
       words,
     };
   }, [input, spamData, hamData, vocab]);

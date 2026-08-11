@@ -174,10 +174,12 @@ function FeatureMappingDemo({
   const height = 320;
   const padding = 40;
   const plotSize = Math.min(width, height) - 2 * padding;
+  const plotLeft = (width - plotSize) / 2;
+  const plotTop = (height - plotSize) / 2;
   const [addLabel, setAddLabel] = useState(1);
 
-  const xScale = (x: number) => padding + x * plotSize;
-  const yScale = (y: number) => padding + (1 - y) * plotSize;
+  const xScale = (x: number) => plotLeft + x * plotSize;
+  const yScale = (y: number) => plotTop + (1 - y) * plotSize;
 
   const handleSvgClick = (e: MouseEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
@@ -185,8 +187,8 @@ function FeatureMappingDemo({
     // 先把 CSS 像素坐标换算到 viewBox 坐标系，再换算到数据坐标
     const sx = (e.clientX - rect.left) * (width / rect.width);
     const sy = (e.clientY - rect.top) * (height / rect.height);
-    const x = (sx - padding) / plotSize;
-    const y = 1 - (sy - padding) / plotSize;
+    const x = (sx - plotLeft) / plotSize;
+    const y = 1 - (sy - plotTop) / plotSize;
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
       setPoints((prev) => [...prev, { x, y, label: addLabel }]);
     }
@@ -236,7 +238,14 @@ function FeatureMappingDemo({
       {/* Original 2D space */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-700 mb-2">原始二维空间</h3>
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" onClick={handleSvgClick}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-auto bg-white rounded-lg border border-gray-200"
+          role="group"
+          aria-label="原始二维特征空间；点击绘图区可添加点，已有点可用鼠标或键盘选择"
+          onClick={handleSvgClick}
+        >
+          <title>原始二维特征空间</title>
           {/* grid */}
           {[0, 0.25, 0.5, 0.75, 1].map((t) => (
             <g key={t}>
@@ -245,10 +254,10 @@ function FeatureMappingDemo({
             </g>
           ))}
           {/* axes */}
-          <line x1={padding} y1={yScale(0)} x2={padding + plotSize} y2={yScale(0)} stroke="#6b7280" strokeWidth={1.5} />
-          <line x1={padding} y1={yScale(0)} x2={padding} y2={yScale(1)} stroke="#6b7280" strokeWidth={1.5} />
-          <text x={padding + plotSize / 2} y={height - 10} textAnchor="middle" fontSize={11} fill="#4b5563">x₁</text>
-          <text x={15} y={padding + plotSize / 2} textAnchor="middle" fontSize={11} fill="#4b5563">x₂</text>
+          <line x1={xScale(0)} y1={yScale(0)} x2={xScale(1)} y2={yScale(0)} stroke="#6b7280" strokeWidth={1.5} />
+          <line x1={xScale(0)} y1={yScale(0)} x2={xScale(0)} y2={yScale(1)} stroke="#6b7280" strokeWidth={1.5} />
+          <text x={width / 2} y={height - 10} textAnchor="middle" fontSize={11} fill="#4b5563">x₁</text>
+          <text x={plotLeft - 20} y={height / 2} textAnchor="middle" fontSize={11} fill="#4b5563">x₂</text>
           {/* points */}
           {points.map((p, i) => (
             <circle
@@ -260,9 +269,18 @@ function FeatureMappingDemo({
               stroke={selectedPoint === i ? '#1f2937' : 'white'}
               strokeWidth={selectedPoint === i ? 3 : 2}
               className="cursor-pointer transition-all"
+              role="button"
+              tabIndex={0}
+              aria-label={`选择第 ${i + 1} 个点：x1 ${p.x.toFixed(2)}，x2 ${p.y.toFixed(2)}，标签 ${p.label > 0 ? '正一' : '负一'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedPoint(selectedPoint === i ? null : i);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedPoint(selectedPoint === i ? null : i);
+                }
               }}
             />
           ))}
@@ -272,7 +290,8 @@ function FeatureMappingDemo({
       {/* Mapped 3D space */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-700 mb-2">映射后的三维空间 φ(x)</h3>
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" role="group" aria-label="映射后的三维特征空间">
+          <title>映射后的三维特征空间</title>
           {/* draw axes */}
           <line x1={width / 2 - 80} y1={height / 2 + 100} x2={width / 2 + 100} y2={height / 2 + 20} stroke="#9ca3af" strokeWidth={1.5} />
           <line x1={width / 2 - 80} y1={height / 2 + 100} x2={width / 2 - 160} y2={height / 2 + 40} stroke="#9ca3af" strokeWidth={1.5} />
@@ -293,7 +312,16 @@ function FeatureMappingDemo({
                 stroke={selectedPoint === i ? '#1f2937' : 'white'}
                 strokeWidth={selectedPoint === i ? 3 : 2}
                 className="cursor-pointer transition-all"
+                role="button"
+                tabIndex={0}
+                aria-label={`选择映射后的第 ${i + 1} 个点`}
                 onClick={() => setSelectedPoint(selectedPoint === i ? null : i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedPoint(selectedPoint === i ? null : i);
+                  }
+                }}
               />
             );
           })}

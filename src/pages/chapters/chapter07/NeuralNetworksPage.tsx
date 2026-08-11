@@ -110,7 +110,7 @@ export default function NeuralNetworksPage() {
         </div>
         <p className="text-gray-700 mb-4">
           若把激活函数换成恒等映射，两层网络会退化为一个等价的线性模型：
-          <KaTeX math={String.raw`h(x) = W^{[2]} W^{[1]} x = \widetilde{W} x`} display={false} />。
+          <KaTeX math={String.raw`h(x) = W^{[2]}(W^{[1]}x+b^{[1]})+b^{[2]}=\widetilde{W}x+\widetilde{b}`} display={false} />。
           下面的交互实验让你直观感受“去掉 ReLU”后表达能力的坍塌。
         </p>
 
@@ -128,7 +128,7 @@ export default function NeuralNetworksPage() {
         <p className="text-gray-700 mb-4">
           传统方法需要我们手工设计特征映射 <KaTeX math={String.raw`\phi(x)`} display={false} />；
           神经网络则把最后一层之前的输出 <KaTeX math={String.raw`a^{[r-1]}`} display={false} /> 当作“自动学习到的特征”，
-          再在上面做线性分类。拖动数据点或调整隐藏神经元，观察隐藏特征如何让线性边界解决非线性可分问题。
+          再在上面做线性分类。切换数据分布或调整隐藏神经元方向，观察隐藏特征如何让线性输出层解决原空间中的非线性问题。
         </p>
 
         <FormulaCard
@@ -189,7 +189,8 @@ function SingleNeuronDemo() {
   const xMin = 0;
   const xMax = 5000;
   const yMin = 0;
-  const yMax = 1000;
+  const maxOutput = Math.max(0, w[0] * xMin + b[0], w[0] * xMax + b[0]);
+  const yMax = Math.max(200, Math.ceil(maxOutput / 200) * 200);
 
   const xScale = (x: number) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
   const yScale = (y: number) => padding + (1 - (y - yMin) / (yMax - yMin)) * (height - 2 * padding);
@@ -218,14 +219,14 @@ function SingleNeuronDemo() {
               <span>权重 w</span>
               <span className="text-blue-600">{w[0].toFixed(3)}</span>
             </label>
-            <Slider min={0.05} max={0.5} step={0.01} value={w} onValueChange={setW} />
+            <Slider aria-label="单神经元权重 w" min={0.05} max={0.5} step={0.01} value={w} onValueChange={setW} />
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 flex justify-between mb-2">
               <span>偏置 b</span>
               <span className="text-blue-600">{b[0].toFixed(0)}</span>
             </label>
-            <Slider min={-500} max={0} step={10} value={b} onValueChange={setB} />
+            <Slider aria-label="单神经元偏置 b" min={-500} max={0} step={10} value={b} onValueChange={setB} />
           </div>
           <div className="text-sm text-gray-600 space-y-1">
             <p>
@@ -237,12 +238,13 @@ function SingleNeuronDemo() {
           </div>
         </div>
 
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 300 }}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 300 }} role="img" aria-label="单个 ReLU 神经元的分段线性输出">
+          <title>单个 ReLU 神经元输出</title>
           {/* grid */}
           {[0, 1000, 2000, 3000, 4000, 5000].map((x) => (
             <line key={`v-${x}`} x1={xScale(x)} y1={yScale(yMin)} x2={xScale(x)} y2={yScale(yMax)} stroke="#e5e7eb" />
           ))}
-          {[0, 200, 400, 600, 800, 1000].map((y) => (
+          {Array.from({ length: 6 }, (_, i) => (i * yMax) / 5).map((y) => (
             <line key={`h-${y}`} x1={xScale(xMin)} y1={yScale(y)} x2={xScale(xMax)} y2={yScale(y)} stroke="#e5e7eb" />
           ))}
           {/* axes */}
@@ -276,8 +278,8 @@ function ActivationFunctionDemo() {
   const padding = 40;
   const xMin = -5;
   const xMax = 5;
-  const yMin = -1.2;
-  const yMax = 1.2;
+  const yMin = active.name === 'ReLU' ? -0.2 : -1.2;
+  const yMax = active.name === 'ReLU' ? 5.2 : 1.2;
 
   const xScale = (x: number) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
   const yScale = (y: number) => padding + (1 - (y - yMin) / (yMax - yMin)) * (height - 2 * padding);
@@ -288,7 +290,7 @@ function ActivationFunctionDemo() {
       pts.push({ x, y: active.fn(x) });
     }
     return pts;
-  }, [active]);
+  }, [active, xMin, xMax]);
 
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`).join(' ');
 
@@ -308,11 +310,12 @@ function ActivationFunctionDemo() {
         ))}
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 280 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 280 }} role="img" aria-label={`${active.name} 激活函数曲线`}>
+        <title>{active.name} 激活函数曲线</title>
         {[-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].map((x) => (
           <line key={`v-${x}`} x1={xScale(x)} y1={yScale(yMin)} x2={xScale(x)} y2={yScale(yMax)} stroke="#e5e7eb" />
         ))}
-        {[-1, -0.5, 0, 0.5, 1].map((y) => (
+        {(active.name === 'ReLU' ? [0, 1, 2, 3, 4, 5] : [-1, -0.5, 0, 0.5, 1]).map((y) => (
           <line key={`h-${y}`} x1={xScale(xMin)} y1={yScale(y)} x2={xScale(xMax)} y2={yScale(y)} stroke="#e5e7eb" />
         ))}
         <line x1={padding} y1={yScale(0)} x2={width - padding} y2={yScale(0)} stroke="#6b7280" strokeWidth={1.5} />
@@ -429,6 +432,7 @@ function HouseNetworkDemo() {
                 </span>
               </label>
               <Slider
+                aria-label={`${inp.label}${inp.unit ? ` ${inp.unit}` : ''}`}
                 min={inp.key === 'size' ? 500 : inp.key === 'zip' ? 10 : 0}
                 max={inp.key === 'size' ? 5000 : inp.key === 'zip' ? 100 : inp.key === 'wealth' ? 10 : 6}
                 step={inp.key === 'size' ? 50 : inp.key === 'zip' ? 1 : inp.key === 'wealth' ? 0.1 : 1}
@@ -440,7 +444,8 @@ function HouseNetworkDemo() {
         </div>
 
         <div className="relative">
-          <svg viewBox="0 0 640 360" className="w-full h-auto bg-white rounded-lg border border-gray-200">
+          <svg viewBox="0 0 640 360" className="w-full h-auto bg-white rounded-lg border border-gray-200" role="img" aria-label={`${mode === 'handcraft' ? '手工连接' : '全连接'}房价神经网络`}>
+            <title>{mode === 'handcraft' ? '手工结构房价网络' : '全连接房价网络'}</title>
             {/* connections input -> hidden */}
             {INPUTS.map((inp, i) =>
               HIDDEN.map((h) => {
@@ -594,7 +599,7 @@ function LinearCollapseDemo() {
       yMin: Math.min(-1, dataMin - margin),
       yMax: Math.max(3, dataMax + margin),
     };
-  }, [w1, b1, w2, b2, wOut, bOut]);
+  }, [w1, b1, w2, b2, wOut, bOut, xMin, xMax]);
 
   const xScale = (x: number) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
   const yScale = (y: number) => padding + (1 - (y - yMin) / (yMax - yMin)) * (height - 2 * padding);
@@ -621,46 +626,47 @@ function LinearCollapseDemo() {
             <span>神经元 1 权重 w₁</span>
             <span className="text-blue-600">{w1[0].toFixed(2)}</span>
           </label>
-          <Slider min={-2} max={3} step={0.1} value={w1} onValueChange={setW1} />
+          <Slider aria-label="神经元 1 权重" min={-2} max={3} step={0.1} value={w1} onValueChange={setW1} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>神经元 1 偏置 b₁</span>
             <span className="text-blue-600">{b1[0].toFixed(2)}</span>
           </label>
-          <Slider min={-3} max={3} step={0.1} value={b1} onValueChange={setB1} />
+          <Slider aria-label="神经元 1 偏置" min={-3} max={3} step={0.1} value={b1} onValueChange={setB1} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>输出权重 w_out</span>
             <span className="text-blue-600">{wOut[0].toFixed(2)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={wOut} onValueChange={setWOut} />
+          <Slider aria-label="输出权重" min={-2} max={2} step={0.1} value={wOut} onValueChange={setWOut} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>神经元 2 权重 w₂</span>
             <span className="text-rose-600">{w2[0].toFixed(2)}</span>
           </label>
-          <Slider min={-2} max={3} step={0.1} value={w2} onValueChange={setW2} />
+          <Slider aria-label="神经元 2 权重" min={-2} max={3} step={0.1} value={w2} onValueChange={setW2} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>神经元 2 偏置 b₂</span>
             <span className="text-rose-600">{b2[0].toFixed(2)}</span>
           </label>
-          <Slider min={-3} max={3} step={0.1} value={b2} onValueChange={setB2} />
+          <Slider aria-label="神经元 2 偏置" min={-3} max={3} step={0.1} value={b2} onValueChange={setB2} />
         </div>
         <div>
           <label className="flex justify-between text-gray-700 mb-1">
             <span>输出偏置 b_out</span>
             <span className="text-emerald-600">{bOut[0].toFixed(2)}</span>
           </label>
-          <Slider min={-2} max={2} step={0.1} value={bOut} onValueChange={setBOut} />
+          <Slider aria-label="输出偏置" min={-2} max={2} step={0.1} value={bOut} onValueChange={setBOut} />
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 420 }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 420 }} role="img" aria-label="带 ReLU 与恒等激活的网络输出对比">
+        <title>非线性激活与线性坍塌对比</title>
         {[-3, -2, -1, 0, 1, 2, 3, 4, 5].map((x) => (
           <line key={`v-${x}`} x1={xScale(x)} y1={yScale(yMin)} x2={xScale(x)} y2={yScale(yMax)} stroke="#e5e7eb" />
         ))}
@@ -729,14 +735,27 @@ function LearnedFeaturesDemo() {
   const [rotation, setRotation] = useState([0]);
   const [strength, setStrength] = useState([1]);
 
-  // Three hidden neurons whose directions are evenly spaced; rotate together.
-  const baseAngles = [-30, 90, 210]; // degrees
-  const hidden = baseAngles.map((a) => {
-    const theta = ((a + rotation[0]) * Math.PI) / 180;
-    return { wx: Math.cos(theta), wy: Math.sin(theta), b: 0 };
+  // 两组预设参数模拟“已经训练好”的隐藏特征：XOR 使用两组对角绝对值特征，
+  // 同心圆使用八个方向的 ReLU 构成近似多边形边界。
+  const network = dataset === 'xor'
+    ? {
+        neurons: [
+          { angle: -45, b: 0, out: 1 },
+          { angle: 135, b: 0, out: 1 },
+          { angle: 45, b: 0, out: -1 },
+          { angle: 225, b: 0, out: -1 },
+        ],
+        outputBias: 0,
+      }
+    : {
+        neurons: Array.from({ length: 8 }, (_, i) => ({ angle: i * 45, b: -0.8, out: -1 })),
+        outputBias: 0.6,
+      };
+
+  const hidden = network.neurons.map((neuron) => {
+    const theta = ((neuron.angle + rotation[0]) * Math.PI) / 180;
+    return { wx: Math.cos(theta), wy: Math.sin(theta), b: neuron.b, out: neuron.out };
   });
-  const outputWeights = [0.8, -0.6, 0.7];
-  const outputBias = -0.2;
 
   const width = 520;
   const height = 360;
@@ -747,23 +766,25 @@ function LearnedFeaturesDemo() {
   const xScale = (x: number) => padding + ((x - viewMin) / (viewMax - viewMin)) * (width - 2 * padding);
   const yScale = (y: number) => padding + (1 - (y - viewMin) / (viewMax - viewMin)) * (height - 2 * padding);
 
+  const score = (x: number, y: number) => {
+    let z = network.outputBias;
+    hidden.forEach((neuron) => {
+      z += neuron.out * Math.max(0, neuron.wx * x + neuron.wy * y + neuron.b) * strength[0];
+    });
+    return z;
+  };
+
   const gridSize = 28;
-  const cells = useMemo(() => {
-    const arr: { x: number; y: number; pred: number }[] = [];
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        const x = viewMin + ((i + 0.5) / gridSize) * (viewMax - viewMin);
-        const y = viewMin + ((j + 0.5) / gridSize) * (viewMax - viewMin);
-        let z = outputBias;
-        hidden.forEach((h, idx) => {
-          const a = Math.max(0, h.wx * x + h.wy * y + h.b);
-          z += outputWeights[idx] * a * strength[0];
-        });
-        arr.push({ x, y, pred: z });
-      }
+  const cells: { x: number; y: number; pred: number }[] = [];
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const x = viewMin + ((i + 0.5) / gridSize) * (viewMax - viewMin);
+      const y = viewMin + ((j + 0.5) / gridSize) * (viewMax - viewMin);
+      cells.push({ x, y, pred: score(x, y) });
     }
-    return arr;
-  }, [rotation[0], strength[0]]);
+  }
+
+  const correctCount = DATASETS[dataset].filter((point) => (score(point.x, point.y) > 0 ? 1 : 0) === point.label).length;
 
   // Hidden neuron boundary lines: wx*x + wy*y + b = 0 => y = -(wx*x + b)/wy
   function hiddenLine(h: { wx: number; wy: number; b: number }, idx: number) {
@@ -816,7 +837,13 @@ function LearnedFeaturesDemo() {
           {(['xor', 'circle'] as const).map((d) => (
             <button
               key={d}
-              onClick={() => setDataset(d)}
+              type="button"
+              onClick={() => {
+                setDataset(d);
+                setRotation([0]);
+                setStrength([1]);
+              }}
+              aria-pressed={dataset === d}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                 dataset === d
                   ? 'bg-blue-600 text-white border-blue-600'
@@ -833,20 +860,21 @@ function LearnedFeaturesDemo() {
               <span>隐藏神经元方向旋转</span>
               <span className="text-blue-600">{rotation[0]}°</span>
             </label>
-            <Slider min={-60} max={60} step={1} value={rotation} onValueChange={setRotation} />
+            <Slider aria-label="隐藏神经元方向旋转角度" min={-60} max={60} step={1} value={rotation} onValueChange={setRotation} />
           </div>
           <div>
             <label className="flex justify-between text-sm text-gray-700 mb-1">
               <span>输出层权重缩放</span>
               <span className="text-blue-600">{strength[0].toFixed(2)}</span>
             </label>
-            <Slider min={0} max={2} step={0.05} value={strength} onValueChange={setStrength} />
+            <Slider aria-label="输出层权重缩放" min={0} max={2} step={0.05} value={strength} onValueChange={setStrength} />
           </div>
         </div>
       </div>
 
       <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 360 }}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white rounded-lg border border-gray-200" style={{ maxHeight: 360 }} role="img" aria-label={`${dataset === 'xor' ? 'XOR' : '同心圆'}数据的神经网络决策区域`}>
+          <title>{dataset === 'xor' ? 'XOR 数据的非线性决策区域' : '同心圆数据的非线性决策区域'}</title>
           {/* background prediction cells */}
           {cells.map((c, idx) => {
             const cx = xScale(c.x) - cellSize / 2;
@@ -891,10 +919,15 @@ function LearnedFeaturesDemo() {
         </svg>
       </div>
 
+      <div className={`rounded-lg border p-3 text-sm ${correctCount === DATASETS[dataset].length ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+        当前训练点准确率：<strong>{correctCount}/{DATASETS[dataset].length}</strong>。
+        默认参数是一组预设的可分解；旋转方向或缩放输出权重会改变隐藏特征与最终边界。
+      </div>
+
       <p className="text-sm text-gray-600">
         背景颜色是最终输出 <KaTeX math={String.raw`h(x)=W^{[2]}a^{[1]}+b^{[2]}`} display={false} /> 的符号。
         每个橙色虚线是一个隐藏神经元从激活到 0 的分界线；最终决策边界是这些 ReLU 特征的线性组合，因此可以形成分段线性的非线性边界。
-        旋转隐藏神经元方向，观察它如何让原本线性不可分的数据变得可分。
+        默认参数展示隐藏特征如何让原本线性不可分的数据变得可分；交互调整后，准确率也会同步反映边界是否仍然合适。
       </p>
     </div>
   );

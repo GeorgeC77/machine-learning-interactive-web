@@ -258,6 +258,7 @@ function SoftMarginDemo() {
         </label>
         <input
           type="range"
+          aria-label="软间隔惩罚参数 C"
           min={0.05}
           max={5}
           step={0.05}
