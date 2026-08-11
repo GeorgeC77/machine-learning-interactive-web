@@ -28,17 +28,32 @@ export default function OverviewPage() {
           当模型在训练集上表现很好、但在测试集上表现很差时，我们称它发生了<strong>过拟合</strong>；
           当模型连训练集都无法很好拟合时，我们称它发生了<strong>欠拟合</strong>。
         </p>
+        <p className="text-gray-700 mb-4">
+          理论上的泛化误差是对未知数据分布取期望；有限测试集只能给出它的独立估计。
+          测试集不应参与模型选择，否则这个估计也会产生乐观偏差，模型选择应使用独立验证集或交叉验证。
+        </p>
 
         <FormulaCard
-          title="测试误差（泛化误差）"
+          title="期望风险（泛化误差）"
           formula={
             <KaTeX
-              math={String.raw`L(\theta) = \mathbb{E}_{(x,y)\sim D}\left[\bigl(y - h_\theta(x)\bigr)^2\right]`}
+              math={String.raw`R(\theta) = \mathbb{E}_{(x,y)\sim D}\left[\bigl(y - h_\theta(x)\bigr)^2\right],\qquad
+              \hat R_S(\theta)=\frac1n\sum_{i=1}^{n}\bigl(y_i-h_\theta(x_i)\bigr)^2`}
               display
             />
           }
-          description="测试误差是模型在未见过的新样本上的期望损失，是衡量模型好坏的最终标准。"
+          description="R 是未知分布上的期望风险，R̂ 是给定样本上的经验风险。泛化研究二者的差距；独立测试误差是 R 的有限样本估计。"
         />
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">完成本章后，你应该能够</h2>
+        <ul className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">区分期望风险、训练误差、验证误差与独立测试误差。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">在平方损失假设下解释噪声、偏差²与方差的分解。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">识别插值阈值，并说明双下降不是所有模型上的普遍保证。</li>
+          <li className="rounded-lg border border-gray-200 bg-gray-50 p-4">从 Hoeffding 不等式和联合界推导有限假设类的样本复杂度。</li>
+        </ul>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -47,7 +62,7 @@ export default function OverviewPage() {
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <h3 className="font-semibold text-blue-800 mb-2">偏差-方差权衡</h3>
             <p className="text-sm text-gray-700">
-              把测试误差分解为偏差、方差与不可约噪声，理解模型复杂度如何影响泛化。
+              把平方损失下的期望预测误差分解为偏差、方差与不可约噪声，理解模型复杂度如何影响泛化。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">

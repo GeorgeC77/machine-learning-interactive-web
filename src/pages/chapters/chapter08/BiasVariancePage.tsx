@@ -5,54 +5,59 @@ import FormulaCard from '@/components/FormulaCard';
 import { Slider } from '@/components/ui/slider';
 
 /* -------------------------------------------------------------------------- */
-/* 数值工具：多项式最小二乘拟合                                               */
+/* 数值工具：在缩放后的 Chebyshev 基上用 QR 做多项式最小二乘                    */
 /* -------------------------------------------------------------------------- */
-function solveLinearSystem(A: number[][], b: number[]): number[] {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
-    }
-    [M[i], M[maxRow]] = [M[maxRow], M[i]];
-
-    const pivot = M[i][i];
-    if (Math.abs(pivot) < 1e-12) continue;
-
-    for (let j = i; j <= n; j++) M[i][j] /= pivot;
-
-    for (let k = 0; k < n; k++) {
-      if (k === i) continue;
-      const factor = M[k][i];
-      for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
-    }
-  }
-
-  return M.map((row) => row[n]);
-}
-
-function designMatrix(xs: number[], degree: number): number[][] {
-  return xs.map((x) => Array.from({ length: degree + 1 }, (_, j) => Math.pow(x, j)));
+function polynomialBasis(x: number, degree: number): number[] {
+  const z = 2 * x - 1;
+  const basis = new Array(degree + 1).fill(0);
+  basis[0] = 1;
+  if (degree >= 1) basis[1] = z;
+  for (let j = 2; j <= degree; j += 1) basis[j] = 2 * z * basis[j - 1] - basis[j - 2];
+  return basis;
 }
 
 function polyFit(xs: number[], ys: number[], degree: number): number[] {
   const effectiveDegree = Math.max(0, Math.min(degree, xs.length - 1));
-  if (xs.length < effectiveDegree + 1) return new Array(effectiveDegree + 1).fill(0);
-  const X = designMatrix(xs, effectiveDegree);
-  const Xt = X[0].map((_, col) => X.map((row) => row[col]));
-  const XtX = Xt.map((row) => XtXRow(row, X));
-  const Xty = Xt.map((row) => row.reduce((sum, v, i) => sum + v * ys[i], 0));
-  return solveLinearSystem(XtX, Xty);
-}
+  const design = xs.map((x) => polynomialBasis(x, effectiveDegree));
+  const columns = Array.from({ length: effectiveDegree + 1 }, (_, j) =>
+    design.map((row) => row[j]),
+  );
+  const qColumns: number[][] = [];
+  const r = Array.from({ length: effectiveDegree + 1 }, () => new Array(effectiveDegree + 1).fill(0));
 
-function XtXRow(row: number[], X: number[][]): number[] {
-  return X[0].map((_, j) => row.reduce((sum, v, i) => sum + v * X[i][j], 0));
+  for (let j = 0; j <= effectiveDegree; j += 1) {
+    const v = [...columns[j]];
+    for (let i = 0; i < j; i += 1) {
+      const projection = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+      r[i][j] += projection;
+      for (let row = 0; row < v.length; row += 1) v[row] -= projection * qColumns[i][row];
+    }
+    // 再正交化一次，降低高次多项式中的舍入误差。
+    for (let i = 0; i < j; i += 1) {
+      const correction = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+      r[i][j] += correction;
+      for (let row = 0; row < v.length; row += 1) v[row] -= correction * qColumns[i][row];
+    }
+    const norm = Math.sqrt(v.reduce((sum, value) => sum + value * value, 0));
+    if (norm < 1e-12) return new Array(effectiveDegree + 1).fill(0);
+    r[j][j] = norm;
+    qColumns.push(v.map((value) => value / norm));
+  }
+
+  const qty = qColumns.map((column) => column.reduce((sum, q, row) => sum + q * ys[row], 0));
+  const weights = new Array(effectiveDegree + 1).fill(0);
+  for (let i = effectiveDegree; i >= 0; i -= 1) {
+    const known = r[i].reduce((sum, value, j) => (j > i ? sum + value * weights[j] : sum), 0);
+    weights[i] = (qty[i] - known) / r[i][i];
+  }
+  return weights;
 }
 
 function predict(xs: number[], weights: number[]): number[] {
-  return xs.map((x) => weights.reduce((sum, w, j) => sum + w * Math.pow(x, j), 0));
+  return xs.map((x) => {
+    const basis = polynomialBasis(x, weights.length - 1);
+    return weights.reduce((sum, weight, j) => sum + weight * basis[j], 0);
+  });
 }
 
 function mse(pred: number[], actual: number[]): number {
@@ -105,7 +110,7 @@ export default function BiasVariancePage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">偏差-方差权衡</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          测试误差可以分解为偏差、方差与不可约噪声。通过交互拟合实验，
+          在平方损失与标准噪声假设下，期望预测误差可以分解为偏差、方差与不可约噪声。通过交互拟合实验，
           直观理解模型复杂度如何同时影响这三者。
         </p>
 
@@ -115,10 +120,13 @@ export default function BiasVariancePage() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
           <Scale className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">测试误差的分解</h2>
+          <h2 className="text-2xl font-bold text-gray-900">期望预测误差的分解</h2>
         </div>
         <p className="text-gray-700 mb-4">
-          对于回归问题，在固定测试点上的期望测试误差可以分解为三项：
+          对平方损失回归，若 <KaTeX math={String.raw`y=h^*(x)+\varepsilon`} />、
+          <KaTeX math={String.raw`\mathbb E[\varepsilon\mid x]=0`} /> 且
+          <KaTeX math={String.raw`\operatorname{Var}(\varepsilon\mid x)=\sigma^2`} />，
+          那么固定输入 x 处、对训练集与新样本噪声取期望的预测误差可分解为三项：
         </p>
 
         <FormulaCard
@@ -136,19 +144,19 @@ export default function BiasVariancePage() {
           <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
             <h3 className="font-semibold text-rose-800 mb-2">偏差（Bias）</h3>
             <p className="text-sm text-gray-700">
-              即使拥有无限训练数据，模型族也无法表示真实函数所带来的误差。简单模型（如线性模型拟合二次函数）通常偏差大。
+              平均预测与真实回归函数之间的系统性差异，可能来自模型族限制或学习算法。简单模型拟合复杂关系时通常偏差较大。
             </p>
           </div>
           <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
             <h3 className="font-semibold text-amber-800 mb-2">方差（Variance）</h3>
             <p className="text-sm text-gray-700">
-              由于训练集有限且带有噪声，不同训练集学出的模型波动很大。复杂模型（如高次多项式）通常方差大。
+              衡量更换训练集后预测值的波动。在样本有限且带噪声时，高容量模型往往更敏感，但这并非所有算法下的必然结论。
             </p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <h3 className="font-semibold text-gray-800 mb-2">不可约噪声</h3>
             <p className="text-sm text-gray-700">
-              数据本身的随机噪声，无论多好的模型都无法消除。它是测试误差的下界。
+              数据本身的随机噪声无法由预测函数消除；在上述生成模型与平方损失下，σ² 是 Bayes 风险的下界。
             </p>
           </div>
         </div>
@@ -189,15 +197,15 @@ export default function BiasVariancePage() {
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>简单模型偏差大、方差小，容易欠拟合。</span>
+            <span>在本页的多项式最小二乘实验中，低次数模型通常偏差较大、方差较小，容易欠拟合。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>复杂模型偏差小、方差大，容易过拟合。</span>
+            <span>随着次数升高，偏差通常下降，但有限样本下的方差可能迅速增大并导致过拟合。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>测试误差 = 不可约噪声 + 偏差² + 方差，需在模型复杂度间寻找平衡。</span>
+            <span>在平方损失与上述噪声假设下，期望预测误差 = 不可约噪声 + 偏差² + 方差。</span>
           </li>
         </ul>
       </section>
@@ -325,16 +333,17 @@ function PolyFitDemo() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-5">
           <ControlRow label={`多项式次数: ${degree}${degree !== effectiveDegree ? ` (实际拟合: ${effectiveDegree})` : ''}`}>
-            <Slider value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
+            <Slider aria-label="单次拟合多项式次数" value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
           </ControlRow>
           <ControlRow label={`训练样本数: ${nTrain}`}>
-            <Slider value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
+            <Slider aria-label="单次拟合训练样本数" value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
           </ControlRow>
           <ControlRow label={`噪声标准差: ${noise.toFixed(2)}`}>
-            <Slider value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
+            <Slider aria-label="单次拟合噪声标准差" value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
           </ControlRow>
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => setSeed((s) => s + 1)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
@@ -360,16 +369,24 @@ function PolyFitDemo() {
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }} role="img" aria-label="多项式拟合、真实函数及训练测试样本">
+            <title>多项式拟合与欠拟合、过拟合</title>
+            <defs>
+              <clipPath id="poly-fit-chart-clip">
+                <rect x={PADDING.left} y={PADDING.top} width={WIDTH - PADDING.left - PADDING.right} height={HEIGHT - PADDING.top - PADDING.bottom} />
+              </clipPath>
+            </defs>
             <ChartFrame />
-            <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
-            <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
-            {train.x.map((x, i) => (
-              <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
-            ))}
-            {test.x.map((x, i) => (
-              <circle key={`te-${i}`} cx={scaleX(x)} cy={scaleY(test.y[i])} r={2} fill="#10b981" opacity={0.25} />
-            ))}
+            <g clipPath="url(#poly-fit-chart-clip)">
+              <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
+              <path d={pathFromPoints(predPoints)} fill="none" stroke="#2563eb" strokeWidth={3} />
+              {train.x.map((x, i) => (
+                <circle key={`tr-${i}`} cx={scaleX(x)} cy={scaleY(train.y[i])} r={4} fill="#f97316" opacity={0.7} />
+              ))}
+              {test.x.map((x, i) => (
+                <circle key={`te-${i}`} cx={scaleX(x)} cy={scaleY(test.y[i])} r={2} fill="#10b981" opacity={0.25} />
+              ))}
+            </g>
           </svg>
           <div className="flex flex-wrap gap-4 justify-center mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500" /> 训练点</span>
@@ -402,17 +419,15 @@ function VarianceDemo() {
   const [numTrials, setNumTrials] = useState(30);
   const [seedOffset, setSeedOffset] = useState(0);
 
-  const { curves, meanCurve, truePoints, biasSq, variance, testErr } = useMemo(() => {
+  const { curves, meanCurve, truePoints, biasSq, variance, testErr, decomposition } = useMemo(() => {
     const trials: { x: number[]; y: number[] }[] = [];
     for (let t = 0; t < numTrials; t++) {
       trials.push(generateData(nTrain, noise, seedOffset * 10000 + t));
     }
 
     const curveX = Array.from({ length: 200 }, (_, i) => (i / 199) * (X_MAX - X_MIN) + X_MIN);
-    const allCurves = trials.map((tr) => {
-      const w = polyFit(tr.x, tr.y, degree);
-      return curveX.map((x) => predict([x], w)[0]);
-    });
+    const fittedWeights = trials.map((tr) => polyFit(tr.x, tr.y, degree));
+    const allCurves = fittedWeights.map((weights) => predict(curveX, weights));
 
     const meanPred = curveX.map((_, i) => allCurves.reduce((sum, c) => sum + c[i], 0) / allCurves.length);
     const varPred = curveX.map((_, i) => {
@@ -421,10 +436,7 @@ function VarianceDemo() {
     });
 
     const testData = generateData(200, noise, seedOffset * 10000 + 99999);
-    const testPreds = trials.map((tr) => {
-      const w = polyFit(tr.x, tr.y, degree);
-      return predict(testData.x, w);
-    });
+    const testPreds = fittedWeights.map((weights) => predict(testData.x, weights));
     const avgTestErr =
       testPreds.reduce((sum, pred) => sum + mse(pred, testData.y), 0) / testPreds.length;
 
@@ -440,6 +452,7 @@ function VarianceDemo() {
       biasSq: bias2,
       variance: varAvg,
       testErr: avgTestErr,
+      decomposition: noise * noise + bias2 + varAvg,
     };
   }, [degree, nTrain, noise, numTrials, seedOffset]);
 
@@ -450,18 +463,19 @@ function VarianceDemo() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-5">
           <ControlRow label={`多项式次数: ${degree}${degree !== effectiveDegree ? ` (实际拟合: ${effectiveDegree})` : ''}`}>
-            <Slider value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
+            <Slider aria-label="方差实验多项式次数" value={[degree]} min={1} max={15} step={1} onValueChange={(v) => setDegree(v[0])} />
           </ControlRow>
           <ControlRow label={`训练样本数: ${nTrain}`}>
-            <Slider value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
+            <Slider aria-label="方差实验训练样本数" value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
           </ControlRow>
           <ControlRow label={`噪声标准差: ${noise.toFixed(2)}`}>
-            <Slider value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
+            <Slider aria-label="方差实验噪声标准差" value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
           </ControlRow>
           <ControlRow label={`重复实验次数: ${numTrials}`}>
-            <Slider value={[numTrials]} min={10} max={100} step={10} onValueChange={(v) => setNumTrials(v[0])} />
+            <Slider aria-label="方差实验重复次数" value={[numTrials]} min={10} max={100} step={10} onValueChange={(v) => setNumTrials(v[0])} />
           </ControlRow>
           <button
+            type="button"
             onClick={() => setSeedOffset((s) => s + 1)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -481,18 +495,31 @@ function VarianceDemo() {
               <span className="text-gray-600">平均测试误差:</span>
               <span className="font-mono font-medium text-emerald-700">{testErr.toFixed(6)}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">噪声² + 偏差² + 方差:</span>
+              <span className="font-mono font-medium text-violet-700">{decomposition.toFixed(6)}</span>
+            </div>
+            <p className="pt-1 text-xs text-gray-500">两者来自有限次数的不同蒙特卡洛估计，因此通常接近但不完全相等。</p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }} role="img" aria-label="多次训练所得拟合曲线、平均模型与真实函数">
+            <title>多次采样下的模型方差与偏差</title>
+            <defs>
+              <clipPath id="variance-chart-clip">
+                <rect x={PADDING.left} y={PADDING.top} width={WIDTH - PADDING.left - PADDING.right} height={HEIGHT - PADDING.top - PADDING.bottom} />
+              </clipPath>
+            </defs>
             <ChartFrame />
-            <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
-            {curves.map((c, idx) => {
-              const pts = c.map((y, i) => ({ x: (i / 199) * (X_MAX - X_MIN) + X_MIN, y }));
-              return <path key={idx} d={pathFromPoints(pts)} fill="none" stroke="#9ca3af" strokeWidth={1} opacity={0.25} />;
-            })}
-            <path d={pathFromPoints(meanCurve)} fill="none" stroke="#f97316" strokeWidth={3} />
+            <g clipPath="url(#variance-chart-clip)">
+              <path d={pathFromPoints(truePoints)} fill="none" stroke="#374151" strokeWidth={2} strokeDasharray="6 4" />
+              {curves.map((c, idx) => {
+                const pts = c.map((y, i) => ({ x: (i / 199) * (X_MAX - X_MIN) + X_MIN, y }));
+                return <path key={idx} d={pathFromPoints(pts)} fill="none" stroke="#9ca3af" strokeWidth={1} opacity={0.25} />;
+              })}
+              <path d={pathFromPoints(meanCurve)} fill="none" stroke="#f97316" strokeWidth={3} />
+            </g>
           </svg>
           <div className="flex flex-wrap gap-4 justify-center mt-2 text-xs text-gray-600">
             <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-gray-400" /> 各次拟合</span>
@@ -514,38 +541,43 @@ function TradeoffCurveDemo() {
   const [maxDegree, setMaxDegree] = useState(15);
   const [numTrials, setNumTrials] = useState(30);
   const [seedOffset, setSeedOffset] = useState(0);
+  const effectiveMaxDegree = Math.min(maxDegree, nTrain - 1);
 
   const curveData = useMemo(() => {
     const result: { degree: number; train: number; test: number }[] = [];
-    for (let d = 1; d <= maxDegree; d++) {
+    const trials = Array.from({ length: numTrials }, (_, t) => ({
+      train: generateData(nTrain, noise, seedOffset * 100000 + t),
+      test: generateData(200, noise, seedOffset * 100000 + t + 50000),
+    }));
+    for (let d = 1; d <= effectiveMaxDegree; d++) {
       let trainSum = 0;
       let testSum = 0;
-      for (let t = 0; t < numTrials; t++) {
-        const tr = generateData(nTrain, noise, seedOffset * 100000 + d * 1000 + t);
-        const te = generateData(200, noise, seedOffset * 100000 + d * 1000 + t + 50000);
-        const w = polyFit(tr.x, tr.y, d);
-        const predTr = predict(tr.x, w);
-        const predTe = predict(te.x, w);
-        trainSum += mse(predTr, tr.y);
-        testSum += mse(predTe, te.y);
+      for (const trial of trials) {
+        const weights = polyFit(trial.train.x, trial.train.y, d);
+        trainSum += mse(predict(trial.train.x, weights), trial.train.y);
+        testSum += mse(predict(trial.test.x, weights), trial.test.y);
       }
       result.push({ degree: d, train: trainSum / numTrials, test: testSum / numTrials });
     }
     return result;
-  }, [nTrain, noise, maxDegree, numTrials, seedOffset]);
+  }, [nTrain, noise, effectiveMaxDegree, numTrials, seedOffset]);
 
   const CW = 720;
   const CH = 360;
   const CP = { top: 25, right: 40, bottom: 50, left: 70 };
   const rawMaxErr = Math.max(...curveData.map((d) => Math.max(d.train, d.test)), 0.01);
-  const yMax = rawMaxErr * 1.05;
+  const yFloor = 1e-6;
+  const logMin = Math.log10(yFloor);
+  const logMax = Math.max(logMin + 1, Math.ceil(Math.log10(rawMaxErr)));
+  const yCeiling = 10 ** logMax;
 
   function cx(degree: number): number {
-    return CP.left + ((degree - 1) / (maxDegree - 1 || 1)) * (CW - CP.left - CP.right);
+    return CP.left + ((degree - 1) / (effectiveMaxDegree - 1 || 1)) * (CW - CP.left - CP.right);
   }
   function cy(err: number): number {
-    const clamped = Math.min(Math.max(err, 0), yMax);
-    return CH - CP.bottom - (clamped / yMax) * (CH - CP.top - CP.bottom);
+    const clamped = Math.min(Math.max(err, yFloor), yCeiling);
+    const ratio = (Math.log10(clamped) - logMin) / (logMax - logMin);
+    return CH - CP.bottom - ratio * (CH - CP.top - CP.bottom);
   }
   function formatY(y: number): string {
     if (y === 0) return '0';
@@ -556,25 +588,26 @@ function TradeoffCurveDemo() {
     if (y < 10) return y.toFixed(2);
     return y.toFixed(1);
   }
-  const yTicks = [0, yMax * 0.25, yMax * 0.5, yMax * 0.75, yMax];
+  const yTicks = Array.from({ length: 5 }, (_, i) => 10 ** (logMin + ((logMax - logMin) * i) / 4));
 
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-5">
           <ControlRow label={`训练样本数: ${nTrain}`}>
-            <Slider value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
+            <Slider aria-label="权衡曲线训练样本数" value={[nTrain]} min={10} max={100} step={5} onValueChange={(v) => setNTrain(v[0])} />
           </ControlRow>
           <ControlRow label={`噪声标准差: ${noise.toFixed(2)}`}>
-            <Slider value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
+            <Slider aria-label="权衡曲线噪声标准差" value={[noise]} min={0} max={0.5} step={0.01} onValueChange={(v) => setNoise(v[0])} />
           </ControlRow>
-          <ControlRow label={`最大多项式次数: ${maxDegree}`}>
-            <Slider value={[maxDegree]} min={3} max={20} step={1} onValueChange={(v) => setMaxDegree(v[0])} />
+          <ControlRow label={`最大多项式次数: ${effectiveMaxDegree}${maxDegree !== effectiveMaxDegree ? `（受样本数限制，原设定 ${maxDegree}）` : ''}`}>
+            <Slider aria-label="权衡曲线最大多项式次数" value={[effectiveMaxDegree]} min={3} max={Math.min(20, nTrain - 1)} step={1} onValueChange={(v) => setMaxDegree(v[0])} />
           </ControlRow>
           <ControlRow label={`重复实验次数: ${numTrials}`}>
-            <Slider value={[numTrials]} min={10} max={100} step={10} onValueChange={(v) => setNumTrials(v[0])} />
+            <Slider aria-label="权衡曲线重复次数" value={[numTrials]} min={10} max={100} step={10} onValueChange={(v) => setNumTrials(v[0])} />
           </ControlRow>
           <button
+            type="button"
             onClick={() => setSeedOffset((s) => s + 1)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -584,9 +617,10 @@ function TradeoffCurveDemo() {
         </div>
 
         <div className="overflow-x-auto">
-          <svg viewBox={`0 0 ${CW} ${CH}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }}>
+          <svg viewBox={`0 0 ${CW} ${CH}`} className="w-full min-w-[360px]" style={{ maxHeight: 360 }} role="img" aria-label="训练与测试误差随多项式次数变化的曲线">
+            <title>偏差方差权衡曲线</title>
             <rect x={CP.left} y={CP.top} width={CW - CP.left - CP.right} height={CH - CP.top - CP.bottom} fill="#f9fafb" />
-            {[1, 5, 10, 15, 20].filter((d) => d <= maxDegree).map((d) => (
+            {[1, 5, 10, 15, 20].filter((d) => d <= effectiveMaxDegree).map((d) => (
               <line key={`vx-${d}`} x1={cx(d)} y1={CP.top} x2={cx(d)} y2={CH - CP.bottom} stroke="#e5e7eb" strokeWidth={1} />
             ))}
             {yTicks.map((e) => (
@@ -594,7 +628,7 @@ function TradeoffCurveDemo() {
             ))}
             <line x1={CP.left} y1={CH - CP.bottom} x2={CW - CP.right} y2={CH - CP.bottom} stroke="#374151" strokeWidth={2} />
             <line x1={CP.left} y1={CP.top} x2={CP.left} y2={CH - CP.bottom} stroke="#374151" strokeWidth={2} />
-            {[1, 5, 10, 15, 20].filter((d) => d <= maxDegree).map((d) => (
+            {[1, 5, 10, 15, 20].filter((d) => d <= effectiveMaxDegree).map((d) => (
               <text key={`lx-${d}`} x={cx(d)} y={CH - CP.bottom + 20} textAnchor="middle" fontSize={12} fill="#4b5563">
                 {d}
               </text>
@@ -608,7 +642,7 @@ function TradeoffCurveDemo() {
               多项式次数
             </text>
             <text x={20} y={CH / 2} textAnchor="middle" fontSize={13} fill="#374151" transform={`rotate(-90, 20, ${CH / 2})`}>
-              误差
+              均方误差（对数刻度）
             </text>
 
             <polyline
@@ -634,6 +668,7 @@ function TradeoffCurveDemo() {
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-600" /> 平均训练误差</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500" /> 平均测试误差</span>
           </div>
+          <p className="mt-2 text-center text-xs text-gray-500">纵轴采用对数刻度；小于 10⁻⁶ 的近零训练误差显示在底边。</p>
         </div>
       </div>
     </div>

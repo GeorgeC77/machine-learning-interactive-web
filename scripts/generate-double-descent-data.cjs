@@ -4,38 +4,45 @@ const path = require('path');
 /* -------------------------------------------------------------------------- */
 /* 数值工具（与页面端保持一致）                                               */
 /* -------------------------------------------------------------------------- */
-function solveLinearSystem(A, b) {
-  const n = A.length;
-  const M = A.map((row, i) => [...row, b[i]]);
-
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
-    }
-    [M[i], M[maxRow]] = [M[maxRow], M[i]];
-
-    const pivot = M[i][i];
-    if (Math.abs(pivot) < 1e-12) continue;
-
-    for (let j = i; j <= n; j++) M[i][j] /= pivot;
-
-    for (let k = 0; k < n; k++) {
-      if (k === i) continue;
-      const factor = M[k][i];
-      for (let j = i; j <= n; j++) M[k][j] -= factor * M[i][j];
-    }
-  }
-
-  return M.map((row) => row[n]);
-}
-
-function matMul(A, B) {
-  return A.map((row) => B[0].map((_, j) => row.reduce((sum, v, k) => sum + v * B[k][j], 0)));
-}
-
 function transpose(A) {
   return A[0].map((_, j) => A.map((row) => row[j]));
+}
+
+function thinQR(A) {
+  const rows = A.length;
+  const cols = A[0].length;
+  if (rows < cols) throw new Error('thinQR requires rows >= columns');
+
+  const qColumns = [];
+  const R = Array.from({ length: cols }, () => new Array(cols).fill(0));
+  for (let j = 0; j < cols; j++) {
+    const v = A.map((row) => row[j]);
+    for (let i = 0; i < j; i++) {
+      const projection = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+      R[i][j] += projection;
+      for (let row = 0; row < rows; row++) v[row] -= projection * qColumns[i][row];
+    }
+    // 再正交化一次，避免在插值阈值附近使用正规方程造成条件数平方。
+    for (let i = 0; i < j; i++) {
+      const correction = qColumns[i].reduce((sum, q, row) => sum + q * v[row], 0);
+      R[i][j] += correction;
+      for (let row = 0; row < rows; row++) v[row] -= correction * qColumns[i][row];
+    }
+    const norm = Math.sqrt(v.reduce((sum, value) => sum + value * value, 0));
+    if (norm < 1e-12) throw new Error('rank-deficient design matrix');
+    R[j][j] = norm;
+    qColumns.push(v.map((value) => value / norm));
+  }
+  return { qColumns, R };
+}
+
+function backSubstitute(R, rhs) {
+  const result = new Array(rhs.length).fill(0);
+  for (let i = rhs.length - 1; i >= 0; i--) {
+    const known = R[i].reduce((sum, value, j) => (j > i ? sum + value * result[j] : sum), 0);
+    result[i] = (rhs[i] - known) / R[i][i];
+  }
+  return result;
 }
 
 function generateGaussianMatrix(rows, cols, seed) {
@@ -75,15 +82,22 @@ function fitLinearModel(X, y) {
   const d = X[0].length;
 
   if (d <= n) {
-    const Xt = transpose(X);
-    const XtX = matMul(Xt, X);
-    const Xty = Xt.map((row) => row.reduce((sum, v, i) => sum + v * y[i], 0));
-    return solveLinearSystem(XtX, Xty);
+    const { qColumns, R } = thinQR(X);
+    const qty = qColumns.map((column) => column.reduce((sum, q, row) => sum + q * y[row], 0));
+    return backSubstitute(R, qty);
   } else {
     const Xt = transpose(X);
-    const XXt = matMul(X, Xt);
-    const alpha = solveLinearSystem(XXt, y);
-    return Xt.map((row) => row.reduce((sum, v, i) => sum + v * alpha[i], 0));
+    const { qColumns, R } = thinQR(Xt);
+    // X^T = QR，因此 Xβ=y 的最小范数解为 β=Qz，其中 R^T z=y。
+    const z = new Array(n).fill(0);
+    for (let i = 0; i < n; i++) {
+      let known = 0;
+      for (let j = 0; j < i; j++) known += R[j][i] * z[j];
+      z[i] = (y[i] - known) / R[i][i];
+    }
+    return Array.from({ length: d }, (_, row) =>
+      qColumns.reduce((sum, column, j) => sum + column[row] * z[j], 0),
+    );
   }
 }
 
@@ -96,32 +110,38 @@ function mseLinear(X, beta, y) {
 /* 生成双下降曲线数据                                                         */
 /* -------------------------------------------------------------------------- */
 function generateCurve(n, noise, maxD, numTrials, seedOffset) {
-  const result = [];
-  for (let d = 1; d <= maxD; d++) {
-    let trainSum = 0;
-    let testSum = 0;
-    let validTrials = 0;
-    for (let t = 0; t < numTrials; t++) {
+  const trainSums = new Array(maxD).fill(0);
+  const testSums = new Array(maxD).fill(0);
+  const validTrials = new Array(maxD).fill(0);
+
+  // 每次重复实验先生成一个固定的 maxD 维数据集；比较不同 d 时只揭示前 d 个特征，
+  // 从而保持样本、标签与真实的前 5 维信号不变。
+  for (let t = 0; t < numTrials; t++) {
+    const baseSeed = seedOffset * 100000 + t;
+    const trainFull = generateDataLinear(n, maxD, noise, baseSeed);
+    const testFull = generateDataLinear(200, maxD, noise, baseSeed + 50000);
+    for (let d = 1; d <= maxD; d++) {
       try {
-        const train = generateDataLinear(n, d, noise, seedOffset * 100000 + d * 1000 + t);
-        const test = generateDataLinear(200, d, noise, seedOffset * 100000 + d * 1000 + t + 50000);
-        const betaHat = fitLinearModel(train.X, train.y);
-        const trainErr = mseLinear(train.X, betaHat, train.y);
-        const testErr = mseLinear(test.X, betaHat, test.y);
+        const trainX = trainFull.X.map((row) => row.slice(0, d));
+        const testX = testFull.X.map((row) => row.slice(0, d));
+        const betaHat = fitLinearModel(trainX, trainFull.y);
+        const trainErr = mseLinear(trainX, betaHat, trainFull.y);
+        const testErr = mseLinear(testX, betaHat, testFull.y);
         if (Number.isFinite(trainErr) && Number.isFinite(testErr)) {
-          trainSum += trainErr;
-          testSum += testErr;
-          validTrials++;
+          trainSums[d - 1] += trainErr;
+          testSums[d - 1] += testErr;
+          validTrials[d - 1]++;
         }
       } catch {
         // 数值不稳定时跳过
       }
     }
-    if (validTrials > 0) {
-      result.push({ d, train: trainSum / validTrials, test: testSum / validTrials });
-    }
   }
-  return result;
+  return Array.from({ length: maxD }, (_, index) => ({
+    d: index + 1,
+    train: trainSums[index] / validTrials[index],
+    test: testSums[index] / validTrials[index],
+  })).filter((point, index) => validTrials[index] > 0 && Number.isFinite(point.train) && Number.isFinite(point.test));
 }
 
 const PARAMS = {
@@ -129,18 +149,21 @@ const PARAMS = {
   noiseValues: [0.1, 0.3, 0.5],
   maxDValues: [80, 120, 160],
   numTrials: 15,
+  signalDimensions: 5,
   seedOffset: 0,
 };
 
 const dataset = [];
 let completed = 0;
-const total = PARAMS.nValues.length * PARAMS.noiseValues.length * PARAMS.maxDValues.length;
+const total = PARAMS.nValues.length * PARAMS.noiseValues.length;
+const largestMaxD = Math.max(...PARAMS.maxDValues);
 
 for (const n of PARAMS.nValues) {
   for (const noise of PARAMS.noiseValues) {
+    console.log(`[${++completed}/${total}] Computing n=${n}, noise=${noise}, maxD=${largestMaxD}`);
+    const fullCurve = generateCurve(n, noise, largestMaxD, PARAMS.numTrials, PARAMS.seedOffset);
     for (const maxD of PARAMS.maxDValues) {
-      console.log(`[${++completed}/${total}] Computing n=${n}, noise=${noise}, maxD=${maxD}`);
-      const curve = generateCurve(n, noise, maxD, PARAMS.numTrials, PARAMS.seedOffset);
+      const curve = fullCurve.filter((point) => point.d <= maxD);
       dataset.push({ n, noise, maxD, numTrials: PARAMS.numTrials, curve });
     }
   }
