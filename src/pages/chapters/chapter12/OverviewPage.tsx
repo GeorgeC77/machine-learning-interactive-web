@@ -1,4 +1,4 @@
-import { ShieldAlert, BookOpen, CheckCircle2 , Circle} from 'lucide-react';
+import { ShieldAlert, BookOpen, CheckCircle2, Circle } from 'lucide-react';
 import KaTeX from '@/components/KaTeX';
 import FormulaCard from '@/components/FormulaCard';
 
@@ -11,11 +11,21 @@ export default function OverviewPage() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">主成分分析</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          主成分分析（PCA）是最常用的线性降维技术。它通过协方差矩阵的特征分解，
-          找到数据变化最大的方向，把高维数据压缩到低维子空间。
+          主成分分析（PCA）是一种经典的无监督线性降维方法。它先中心化数值特征，再寻找方差最大的正交方向，
+          将数据压缩到低维子空间；尺度选择、异常值和非线性结构会直接影响结果。
         </p>
 
         <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+      </section>
+
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">学习目标</h2>
+        <ul className="grid md:grid-cols-2 gap-3 text-sm text-gray-700">
+          <li className="rounded-lg border border-gray-200 p-3">区分中心化、标准化，以及协方差矩阵 PCA 与相关矩阵 PCA。</li>
+          <li className="rounded-lg border border-gray-200 p-3">从 Rayleigh 商推导主成分方向与投影方差。</li>
+          <li className="rounded-lg border border-gray-200 p-3">计算解释方差比例、低维坐标和重构误差。</li>
+          <li className="rounded-lg border border-gray-200 p-3">识别符号不唯一、尺度敏感、异常值敏感和线性假设等边界。</li>
+        </ul>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -27,7 +37,7 @@ export default function OverviewPage() {
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
             <h3 className="font-semibold text-blue-800 mb-2">12.1 主成分分析</h3>
             <p className="text-sm text-gray-700">
-              从降维动机出发，介绍数据预处理、最大化投影方差、协方差矩阵特征分解、低维表示与应用。
+              从降维动机出发，介绍预处理、最大化投影方差、特征分解、低维编码、重构与成分数选择。
             </p>
           </div>
           <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
@@ -45,11 +55,11 @@ export default function OverviewPage() {
           title="PCA 优化目标"
           formula={
             <KaTeX
-              math={String.raw`\max_{\|u\|=1} u^T \Sigma u \quad \text{其中 } \Sigma = \frac{1}{n}\sum_{i=1}^n x^{(i)} (x^{(i)})^T`}
+              math={String.raw`\max_{\|u\|_2=1} u^T \Sigma u,\qquad \Sigma = \frac{1}{n}\sum_{i=1}^n x_c^{(i)}(x_c^{(i)})^T`}
               display
             />
           }
-          description="最优投影方向 u 是样本协方差矩阵 Σ 的最大特征值对应的特征向量。"
+          description="其中 x_c^(i)=x^(i)−μ。最优方向 u 是 Σ 最大特征值对应的单位特征向量；u 与 −u 表示同一条主轴。"
         />
       </section>
 
@@ -61,15 +71,15 @@ export default function OverviewPage() {
         <ul className="space-y-2 text-sm text-blue-800">
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>PCA 是一种无监督线性降维方法。</span>
+            <span>PCA 是基于中心化数值数据的无监督线性降维方法。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>主成分是协方差矩阵的特征向量。</span>
+            <span>主成分是协方差矩阵的单位特征向量，并按特征值从大到小排序。</span>
           </li>
           <li className="flex items-start gap-2">
             <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>保留前 k 个主成分可同时最大化方差并最小化重构误差。</span>
+            <span>在正交线性投影中，前 k 个主成分同时最大化保留方差并最小化平方重构误差。</span>
           </li>
         </ul>
       </section>
