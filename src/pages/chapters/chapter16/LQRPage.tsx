@@ -1,371 +1,191 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { ShieldAlert, Activity, CheckCircle2, RefreshCw , Circle} from 'lucide-react';
-import KaTeX from '@/components/KaTeX';
+import { useId, useMemo, useState, type ReactNode } from 'react';
+import { Activity, CheckCircle2, Circle, RefreshCw, ShieldAlert } from 'lucide-react';
 import FormulaCard from '@/components/FormulaCard';
+import KaTeX from '@/components/KaTeX';
 import { Slider } from '@/components/ui/slider';
+import {
+  closedLoopMatrix,
+  simulateLqr,
+  solveFiniteHorizonLqr,
+  spectralRadius2,
+  type Matrix2,
+  type Vector2,
+} from './controlMath';
 
 export default function LQRPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
       <section className="text-center py-8 bg-white rounded-2xl shadow-sm border border-gray-200">
-        <div className="text-sm font-medium text-blue-600 mb-2 tracking-wide uppercase">
-          第十六章 · 线性二次调节与最优控制
-        </div>
+        <div className="text-sm font-medium text-blue-600 mb-2 tracking-wide uppercase">第十六章 · 线性二次调节与最优控制</div>
         <h1 className="text-3xl font-bold text-gray-900 mb-3">线性二次调节（LQR）</h1>
         <p className="text-gray-600 max-w-2xl mx-auto px-4">
-          LQR 是有限时域 MDP 的一个特殊而重要的情形：系统动态是线性的，代价是二次的。
-          它的最优策略具有漂亮的闭式解——状态反馈控制律。
+          LQR 将线性动力学与凸二次代价结合。有限时域动态规划保持价值函数为二次型，
+          因而最优控制是随时间变化的线性状态反馈。
         </p>
-
-        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
+        <p className="mt-6 text-sm text-amber-700 flex items-center justify-center gap-2"><ShieldAlert className="w-4 h-4" aria-hidden="true" /> 本内容仅供教学与非商业学习使用，完整授权说明见页脚。</p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Activity className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">问题设定</h2>
+        <div className="flex items-center gap-3 mb-4"><Activity className="w-6 h-6 text-blue-600" aria-hidden="true" /><h2 className="text-2xl font-bold text-gray-900">标准有限时域设定</h2></div>
+        <FormulaCard
+          title="离散线性动力学"
+          formula={<KaTeX math={String.raw`x_{t+1}=A_t x_t+B_t u_t+w_t,\qquad \mathbb E[w_t]=0`} display />}
+          description="状态 x 与输入 u 可以是向量；噪声假设与控制无关。确定性 LQR 取 wₜ=0。"
+        />
+        <div className="mt-4">
+          <FormulaCard
+            title="二次总代价"
+            formula={<KaTeX math={String.raw`J=\mathbb E\!\left[\sum_{t=0}^{T-1}(x_t^\top Q_t x_t+u_t^\top R_t u_t)+x_T^\top Q_Tx_T\right]`} display />}
+            description="通常要求 Qₜ,Q_T 半正定、Rₜ 正定；这样每步对 u 的最小化严格凸。"
+          />
         </div>
-        <p className="text-gray-700 mb-4">
-          考虑连续状态与连续动作。用状态向量 <em>s</em> 与动作（控制输入）<em>a</em> 描述系统：
-        </p>
-        <FormulaCard
-          title="线性动态"
-          formula={
-            <KaTeX
-              math={String.raw`s_{t+1} = A_t s_t + B_t a_t + w_t, \quad w_t \sim \mathcal{N}(0, \Sigma_t)`}
-              display
-            />
-          }
-          description="A_t、B_t 为已知矩阵，w_t 是零均值高斯噪声。"
-        />
-        <p className="text-gray-700 mt-4 mb-4">
-          每一步的代价是状态与控制输入的二次函数：
-        </p>
-        <FormulaCard
-          title="二次代价"
-          formula={
-            <KaTeX
-              math={String.raw`c_t(s_t, a_t) = s_t^\top U_t s_t + a_t^\top W_t a_t`}
-              display
-            />
-          }
-          description="U_t、W_t 为正定矩阵；代价希望状态靠近原点、动作尽量平滑。"
-        />
         <p className="text-gray-700 mt-4">
-          等价于把课程中的负奖励 <KaTeX math={String.raw`R_t = -s^\top U_t s - a^\top W_t a`} /> 改写为最小化总代价。
-          在标准加性、控制无关、零均值噪声且目标为期望二次代价的 LQG/LQR 设定下，最优线性反馈增益不依赖噪声方差；噪声方差只影响最优期望代价中的常数项——这是 LQR 的优美性质之一。
+          目标若不是原点，应对误差 δx=x−x̄ 和 δu=u−ū 建模。输入饱和、状态约束、非二次代价或乘性噪声会破坏标准闭式解，
+          此时通常使用受约束优化、MPC 或近似动态规划。
         </p>
       </section>
 
-      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">动态规划求解</h2>
-        <p className="text-gray-700 mb-4">
-          假设 <em>t+1</em> 时刻的最优代价函数是二次型
-          <KaTeX math={String.raw`J_{t+1}(s) = s^\top P_{t+1} s + p_{t+1}`} />，
-          则 <em>t</em> 时刻的最优动作可通过最小化一个关于 <em>a</em> 的二次函数得到：
-        </p>
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <h2 className="text-2xl font-bold text-gray-900">Riccati 反向递推</h2>
+        <p className="text-gray-700">设 Vₜ₊₁(x)=xᵀPₜ₊₁x+cₜ₊₁，完成平方可得：</p>
         <FormulaCard
-          title="最优状态反馈增益"
-          formula={
-            <KaTeX
-              math={String.raw`K_t = (W_t + B_t^\top P_{t+1} B_t)^{-1} B_t^\top P_{t+1} A_t, \quad a_t^* = -K_t s_t`}
-              display
-            />
-          }
-          description="最优控制是状态的线性函数。"
+          title="反馈增益"
+          formula={<KaTeX math={String.raw`K_t=(R_t+B_t^\top P_{t+1}B_t)^{-1}B_t^\top P_{t+1}A_t,\qquad u_t^*=-K_tx_t`} display />}
+          description="矩阵求逆只发生在输入维度；数值实现通常解线性方程而非显式求逆。"
         />
-        <p className="text-gray-700 mt-4 mb-4">
-          代回后得到离散时间 Riccati 方程：
-        </p>
         <FormulaCard
           title="离散 Riccati 方程"
-          formula={
-            <KaTeX
-              math={String.raw`P_t = U_t + A_t^\top P_{t+1} A_t - A_t^\top P_{t+1} B_t (W_t + B_t^\top P_{t+1} B_t)^{-1} B_t^\top P_{t+1} A_t`}
-              display
-            />
-          }
-          description="从终点 P_T = U_T 反向递推，即可得到所有时刻的增益 K_t。"
+          formula={<KaTeX math={String.raw`P_t=Q_t+A_t^\top P_{t+1}A_t-A_t^\top P_{t+1}B_t(R_t+B_t^\top P_{t+1}B_t)^{-1}B_t^\top P_{t+1}A_t`} display />}
+          description="以 P_T=Q_T 为边界从后向前计算。加性零均值噪声只增加价值函数常数项，不改变这些增益。"
         />
-        <p className="text-gray-700 mt-4">
-          标量项 <KaTeX math={String.raw`p_t`} /> 仅受噪声方差影响，不影响控制律。
+        <p className="text-gray-700">
+          无限时域定常 LQR 还需要可稳定化/可检测等条件，Riccati 递推才会趋于稳定解；
+          有限时域增益 Kₜ 一般随 t 变化，不能仅用 K₀ 代替全部反馈律。
         </p>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：一维小车 LQR</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">交互演示：离散双积分器</h2>
         <p className="text-gray-700 mb-4">
-          考虑一个简单的一维小车模型：状态为 <KaTeX math={String.raw`s = [p, v]^\top`} />（位置、速度），
-          控制输入为力 <em>a</em>。调整质量、控制代价权重与初始状态，观察 Riccati 反向递推得到的反馈增益和闭环轨迹。
+          状态为位置与速度，控制量为力。使用零阶保持得到 A=[[1,dt],[0,1]]、B=[dt²/(2m),dt/m]ᵀ；
+          每个离散决策步骤支付 xᵀQx+ru²，末端支付 xᵀQ_Tx。改变权重和噪声，观察反馈、轨迹、总代价与起始闭环谱半径。
         </p>
-        <LQRDemo />
+        <LqrDemo />
       </section>
 
       <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-        <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5" />
-          小结
-        </h3>
+        <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2"><CheckCircle2 className="w-5 h-5" aria-hidden="true" />小结</h3>
         <ul className="space-y-2 text-sm text-blue-800">
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>LQR 假设线性动态与二次代价，是连续状态控制问题的可解析求解特例。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>反向递推 Riccati 方程得到状态反馈增益 K_t，最优控制为 a_t = −K_t s_t。</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Circle className="w-2 h-2 fill-current text-blue-500 mt-0.5 mt-1" />
-            <span>在标准加性、控制无关、零均值噪声且目标为期望二次代价的 LQG/LQR 设定下，最优线性反馈增益不依赖噪声方差；噪声方差只影响最优期望代价中的常数项。</span>
-          </li>
+          {[
+            '有限时域 LQR 的价值函数保持二次型，控制律保持线性。',
+            'Riccati 方程与反馈增益从终端权重反向递推。',
+            '标准加性零均值噪声影响期望代价，但不改变最优反馈增益。',
+            '约束、模型误差和非线性会限制 LQR 的直接适用范围。',
+          ].map((item) => <li key={item} className="flex items-start gap-2"><Circle className="w-2 h-2 fill-current text-blue-500 mt-1" aria-hidden="true" /><span>{item}</span></li>)}
         </ul>
       </section>
     </div>
   );
 }
 
-function LQRDemo() {
+function LqrDemo() {
   const [horizon, setHorizon] = useState(30);
   const [dt, setDt] = useState(0.2);
-  const [mass, setMass] = useState(1.0);
-  const [qPos, setQPos] = useState(1.0);
-  const [rControl, setRControl] = useState(0.5);
-  const [initPos, setInitPos] = useState(5.0);
-  const [initVel, setInitVel] = useState(0.0);
-  const [processNoise, setProcessNoise] = useState(0.0);
-  const [runKey, setRunKey] = useState(0);
+  const [mass, setMass] = useState(1);
+  const [positionWeight, setPositionWeight] = useState(1);
+  const [velocityWeight, setVelocityWeight] = useState(0.2);
+  const [controlWeight, setControlWeight] = useState(0.5);
+  const [initialPosition, setInitialPosition] = useState(5);
+  const [initialVelocity, setInitialVelocity] = useState(0);
+  const [processNoise, setProcessNoise] = useState(0);
+  const [seed, setSeed] = useState(1);
 
-  const { K, trajectory, totalCost } = useMemo(() => {
-    const A = [
-      [1, dt],
-      [0, 1],
-    ];
-    const B = [[0], [dt / mass]];
-    const U = [
-      [qPos, 0],
-      [0, 0],
-    ];
+  const model = useMemo(() => {
+    const A: Matrix2 = [[1, dt], [0, 1]];
+    const B: Vector2 = [dt * dt / (2 * mass), dt / mass];
+    const Q: Matrix2 = [[positionWeight, 0], [0, velocityWeight]];
+    const terminalQ: Matrix2 = [[8 * positionWeight, 0], [0, 4 * velocityWeight]];
+    const solution = solveFiniteHorizonLqr(A, B, Q, controlWeight, terminalQ, horizon);
+    const simulation = simulateLqr(A, B, Q, controlWeight, terminalQ, solution.gains, [initialPosition, initialVelocity], processNoise, seed);
+    const radius = spectralRadius2(closedLoopMatrix(A, B, solution.gains[0]));
+    return { A, B, Q, terminalQ, solution, simulation, radius };
+  }, [horizon, dt, mass, positionWeight, velocityWeight, controlWeight, initialPosition, initialVelocity, processNoise, seed]);
 
-    const Klist: number[][] = [];
-    let P = U;
-
-    for (let t = horizon - 1; t >= 0; t--) {
-      const BtP = matMul(transpose(B), P);
-      const M = BtP[0][0] * B[0][0] + BtP[0][1] * B[1][0] + rControl;
-      const invM = 1 / M;
-      const K = scaleMat(matMul(BtP, A), invM);
-      Klist.unshift(K[0]);
-
-      const AtP = matMul(transpose(A), P);
-      const AtPA = matMul(AtP, A);
-      const AtPB = matMul(AtP, B);
-      const update = matMul(AtPB, K);
-      P = matAdd(U, matSub(AtPA, update));
-    }
-
-    const traj: number[][] = [[initPos, initVel]];
-    let s = [initPos, initVel];
-    let cost = 0;
-    for (let t = 0; t < horizon; t++) {
-      const k = Klist[t];
-      const a = -(k[0] * s[0] + k[1] * s[1]);
-      const As = matVec(A, s);
-      const Ba = [B[0][0] * a, B[1][0] * a];
-      const noise = processNoise > 0 ? [randn() * processNoise, randn() * processNoise] : [0, 0];
-      s = [As[0] + Ba[0] + noise[0], As[1] + Ba[1] + noise[1]];
-      traj.push([...s]);
-      cost += (qPos * s[0] * s[0] + rControl * a * a) * dt;
-    }
-
-    return { K: Klist, trajectory: traj, totalCost: cost };
-  }, [horizon, dt, mass, qPos, rControl, initPos, initVel, processNoise, runKey]);
-
-  const posPoints = trajectory.map((s, t) => ({ t, v: s[0] }));
-  const velPoints = trajectory.map((s, t) => ({ t, v: s[1] }));
-  const controlPoints = trajectory.slice(0, -1).map((s, t) => {
-    const k = K[t];
-    return { t, v: -(k[0] * s[0] + k[1] * s[1]) };
-  });
+  const stateSeries = [
+    { name: '位置 p', color: '#2563eb', data: model.simulation.states.map((state, time) => ({ time, value: state[0] })) },
+    { name: '速度 v', color: '#ea580c', data: model.simulation.states.map((state, time) => ({ time, value: state[1] })) },
+  ];
+  const controlSeries = [{ name: '控制力 u', color: '#16a34a', data: model.simulation.controls.map((value, time) => ({ time, value })) }];
+  const finalState = model.simulation.states[model.simulation.states.length - 1];
 
   return (
     <div className="space-y-5">
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Control label={`时间范围 T: ${horizon}`}>
-          <Slider value={[horizon]} min={5} max={60} step={1} onValueChange={(v) => setHorizon(v[0])} />
-        </Control>
-        <Control label={`时间步长 dt: ${dt.toFixed(2)}`}>
-          <Slider value={[dt]} min={0.05} max={0.5} step={0.05} onValueChange={(v) => setDt(v[0])} />
-        </Control>
-        <Control label={`质量 m: ${mass.toFixed(1)}`}>
-          <Slider value={[mass]} min={0.5} max={3.0} step={0.1} onValueChange={(v) => setMass(v[0])} />
-        </Control>
-        <Control label={`位置代价 q: ${qPos.toFixed(1)}`}>
-          <Slider value={[qPos]} min={0.1} max={5.0} step={0.1} onValueChange={(v) => setQPos(v[0])} />
-        </Control>
-        <Control label={`控制代价 r: ${rControl.toFixed(2)}`}>
-          <Slider value={[rControl]} min={0.05} max={2.0} step={0.05} onValueChange={(v) => setRControl(v[0])} />
-        </Control>
-        <Control label={`初始位置: ${initPos.toFixed(1)}`}>
-          <Slider value={[initPos]} min={-8} max={8} step={0.5} onValueChange={(v) => setInitPos(v[0])} />
-        </Control>
-        <Control label={`初始速度: ${initVel.toFixed(1)}`}>
-          <Slider value={[initVel]} min={-4} max={4} step={0.5} onValueChange={(v) => setInitVel(v[0])} />
-        </Control>
-        <Control label={`过程噪声 σ: ${processNoise.toFixed(2)}`}>
-          <Slider value={[processNoise]} min={0} max={0.5} step={0.05} onValueChange={(v) => setProcessNoise(v[0])} />
-        </Control>
+        <Control label={`决策步数 T：${horizon}`}><Slider aria-label="LQR 决策步数" value={[horizon]} min={5} max={60} step={1} onValueChange={([value]) => setHorizon(value)} /></Control>
+        <Control label={`采样间隔 dt：${dt.toFixed(2)}`}><Slider aria-label="LQR 离散采样间隔" value={[dt]} min={0.05} max={0.5} step={0.05} onValueChange={([value]) => setDt(value)} /></Control>
+        <Control label={`质量 m：${mass.toFixed(1)}`}><Slider aria-label="小车质量" value={[mass]} min={0.5} max={3} step={0.1} onValueChange={([value]) => setMass(value)} /></Control>
+        <Control label={`位置权重 qₚ：${positionWeight.toFixed(1)}`}><Slider aria-label="位置代价权重" value={[positionWeight]} min={0.1} max={5} step={0.1} onValueChange={([value]) => setPositionWeight(value)} /></Control>
+        <Control label={`速度权重 qᵥ：${velocityWeight.toFixed(1)}`}><Slider aria-label="速度代价权重" value={[velocityWeight]} min={0} max={3} step={0.1} onValueChange={([value]) => setVelocityWeight(value)} /></Control>
+        <Control label={`控制权重 r：${controlWeight.toFixed(2)}`}><Slider aria-label="控制输入代价权重" value={[controlWeight]} min={0.05} max={2} step={0.05} onValueChange={([value]) => setControlWeight(value)} /></Control>
+        <Control label={`初始位置：${initialPosition.toFixed(1)}`}><Slider aria-label="初始位置" value={[initialPosition]} min={-8} max={8} step={0.5} onValueChange={([value]) => setInitialPosition(value)} /></Control>
+        <Control label={`初始速度：${initialVelocity.toFixed(1)}`}><Slider aria-label="初始速度" value={[initialVelocity]} min={-4} max={4} step={0.5} onValueChange={([value]) => setInitialVelocity(value)} /></Control>
+        <Control label={`过程噪声标准差：${processNoise.toFixed(2)}`}><Slider aria-label="每个状态分量的过程噪声标准差" value={[processNoise]} min={0} max={0.5} step={0.05} onValueChange={([value]) => setProcessNoise(value)} /></Control>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={() => setRunKey((k) => k + 1)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          重新采样噪声
-        </button>
-        <span className="text-sm text-gray-600">
-          估计累计代价：
-          <span className="font-mono font-medium text-blue-700">{totalCost.toFixed(3)}</span>
-        </span>
-        <span className="text-sm text-gray-600">
-          t=0 反馈增益 K₀ = [{K[0][0].toFixed(3)}, {K[0][1].toFixed(3)}]
-        </span>
-      </div>
+      <button type="button" onClick={() => setSeed((current) => current + 1)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"><RefreshCw className="w-4 h-4" aria-hidden="true" />重新采样噪声</button>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <LineChart title="状态轨迹" series={[{ name: '位置 p', color: '#2563eb', data: posPoints }, { name: '速度 v', color: '#ea580c', data: velPoints }]} />
-        <LineChart title="控制输入 a_t = −K_t s_t" series={[{ name: '控制力', color: '#16a34a', data: controlPoints }]} />
+        <LineChart title="状态轨迹" description="小车的位置和速度随离散时刻变化" series={stateSeries} />
+        <LineChart title="控制输入 uₜ=−Kₜxₜ" description="LQR 反馈控制力随离散时刻变化" series={controlSeries} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm" role="status" aria-live="polite">
+        <Metric label="样本总代价" value={model.simulation.totalCost.toFixed(3)} />
+        <Metric label="末端位置" value={finalState[0].toFixed(3)} />
+        <Metric label="K₀" value={`[${model.solution.gains[0][0].toFixed(3)}, ${model.solution.gains[0][1].toFixed(3)}]`} />
+        <Metric label="ρ(A−BK₀)" value={model.radius.toFixed(3)} />
       </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm text-left border rounded-lg">
-          <thead className="bg-gray-50 text-gray-700">
-            <tr>
-              <th className="px-3 py-2">时刻 t</th>
-              <th className="px-3 py-2">K_t[0]（位置增益）</th>
-              <th className="px-3 py-2">K_t[1]（速度增益）</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {K.slice(0, 10).map((k, t) => (
-              <tr key={t}>
-                <td className="px-3 py-2 font-mono">{t}</td>
-                <td className="px-3 py-2 font-mono">{k[0].toFixed(4)}</td>
-                <td className="px-3 py-2 font-mono">{k[1].toFixed(4)}</td>
-              </tr>
-            ))}
-            {K.length > 10 && (
-              <tr>
-                <td className="px-3 py-2 text-gray-500" colSpan={3}>… 共 {K.length} 行</td>
-              </tr>
-            )}
-          </tbody>
+          <caption className="sr-only">前十个时刻的 LQR 反馈增益</caption>
+          <thead className="bg-gray-50 text-gray-700"><tr><th scope="col" className="px-3 py-2">时刻 t</th><th scope="col" className="px-3 py-2">位置增益</th><th scope="col" className="px-3 py-2">速度增益</th></tr></thead>
+          <tbody className="divide-y">{model.solution.gains.slice(0, 10).map((gain, time) => <tr key={time}><th scope="row" className="px-3 py-2 font-mono font-normal">{time}</th><td className="px-3 py-2 font-mono">{gain[0].toFixed(4)}</td><td className="px-3 py-2 font-mono">{gain[1].toFixed(4)}</td></tr>)}</tbody>
         </table>
       </div>
     </div>
   );
 }
 
-function LineChart({ title, series }: { title: string; series: { name: string; color: string; data: { t: number; v: number }[] }[] }) {
+interface ChartSeries { name: string; color: string; data: { time: number; value: number }[] }
+
+function LineChart({ title, description, series }: { title: string; description: string; series: ChartSeries[] }) {
+  const chartId = useId().replace(/:/g, '');
   const width = 480;
   const height = 220;
-  const pad = { top: 10, right: 10, bottom: 28, left: 44 };
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
-
-  const allValues = series.flatMap((s) => s.data.map((d) => d.v));
-  const min = Math.min(0, ...allValues);
-  const max = Math.max(0, ...allValues);
-  const range = Math.max(1e-6, max - min);
-  const T = series[0]?.data.length ?? 0;
-
-  const x = (t: number) => pad.left + (t / Math.max(1, T - 1)) * innerW;
-  const y = (v: number) => pad.top + innerH - ((v - min) / range) * innerH;
-
-  const zeroY = y(0);
+  const padding = { top: 10, right: 10, bottom: 28, left: 44 };
+  const values = series.flatMap((item) => item.data.map((point) => point.value));
+  const minimum = Math.min(0, ...values);
+  const maximum = Math.max(0, ...values);
+  const range = Math.max(1e-6, maximum - minimum);
+  const length = Math.max(...series.map((item) => item.data.length), 1);
+  const x = (time: number) => padding.left + (time / Math.max(1, length - 1)) * (width - padding.left - padding.right);
+  const y = (value: number) => padding.top + (height - padding.top - padding.bottom) - ((value - minimum) / range) * (height - padding.top - padding.bottom);
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <h4 className="text-sm font-semibold text-gray-800 mb-3">{title}</h4>
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ maxHeight: 260 }}>
-        <line x1={pad.left} y1={zeroY} x2={width - pad.right} y2={zeroY} stroke="#e5e7eb" strokeWidth={1} />
-        <line x1={pad.left} y1={pad.top} x2={pad.left} y2={height - pad.bottom} stroke="#d1d5db" strokeWidth={1} />
-        <line x1={width - pad.right} y1={pad.top} x2={width - pad.right} y2={height - pad.bottom} stroke="#e5e7eb" strokeWidth={1} />
-        {series.map((s, idx) => {
-          const d = s.data
-            .map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.t)} ${y(p.v)}`)
-            .join(' ');
-          return (
-            <path key={idx} d={d} fill="none" stroke={s.color} strokeWidth={2.5} />
-          );
-        })}
-        <text x={pad.left} y={height - 6} fontSize={10} fill="#6b7280">t=0</text>
-        <text x={width - pad.right - 20} y={height - 6} fontSize={10} fill="#6b7280">t=T</text>
-        <text x={6} y={pad.top + 8} fontSize={10} fill="#6b7280">{max.toFixed(1)}</text>
-        <text x={6} y={height - pad.bottom - 2} fontSize={10} fill="#6b7280">{min.toFixed(1)}</text>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ maxHeight: 260 }} role="img" aria-labelledby={`${chartId}-title ${chartId}-desc`}>
+        <title id={`${chartId}-title`}>{title}</title><desc id={`${chartId}-desc`}>{description}</desc>
+        <line x1={padding.left} y1={y(0)} x2={width - padding.right} y2={y(0)} stroke="#e5e7eb" />
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="#d1d5db" />
+        {series.map((item) => <path key={item.name} d={item.data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${x(point.time)} ${y(point.value)}`).join(' ')} fill="none" stroke={item.color} strokeWidth={2.5} />)}
+        <text x={padding.left} y={height - 6} fontSize={10} fill="#6b7280">t=0</text><text x={width - padding.right - 20} y={height - 6} fontSize={10} fill="#6b7280">t=T</text>
       </svg>
-      <div className="flex flex-wrap gap-3 mt-2">
-        {series.map((s, idx) => (
-          <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-700">
-            <span className="w-3 h-0.5 rounded" style={{ backgroundColor: s.color }} />
-            {s.name}
-          </div>
-        ))}
-      </div>
+      <div className="flex flex-wrap gap-3 mt-2">{series.map((item) => <span key={item.name} className="flex items-center gap-1.5 text-xs text-gray-700"><span className="w-3 h-0.5 rounded" style={{ backgroundColor: item.color }} />{item.name}</span>)}</div>
     </div>
   );
 }
 
-function Control({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function transpose(A: number[][]) {
-  return A[0].map((_, j) => A.map((row) => row[j]));
-}
-
-function matMul(A: number[][], B: number[][]) {
-  const m = A.length;
-  const n = B[0].length;
-  const p = B.length;
-  const C: number[][] = Array.from({ length: m }, () => new Array(n).fill(0));
-  for (let i = 0; i < m; i++) {
-    for (let j = 0; j < n; j++) {
-      let sum = 0;
-      for (let k = 0; k < p; k++) sum += A[i][k] * B[k][j];
-      C[i][j] = sum;
-    }
-  }
-  return C;
-}
-
-function matVec(A: number[][], x: number[]) {
-  return A.map((row) => row.reduce((s, v, i) => s + v * x[i], 0));
-}
-
-function matAdd(A: number[][], B: number[][]) {
-  return A.map((row, i) => row.map((v, j) => v + B[i][j]));
-}
-
-function matSub(A: number[][], B: number[][]) {
-  return A.map((row, i) => row.map((v, j) => v - B[i][j]));
-}
-
-function scaleMat(A: number[][], c: number) {
-  return A.map((row) => row.map((v) => v * c));
-}
-
-function randn() {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
+function Control({ label, children }: { label: string; children: ReactNode }) { return <div><div className="text-sm font-medium text-gray-700 mb-2">{label}</div>{children}</div>; }
+function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded-lg bg-gray-50 p-3"><span className="block text-gray-600">{label}</span><span className="font-mono font-semibold text-blue-700">{value}</span></div>; }
