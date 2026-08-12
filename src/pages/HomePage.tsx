@@ -1,27 +1,15 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, GraduationCap, ChevronRight, ShieldAlert, CheckCircle2, FlaskConical, Construction } from 'lucide-react';
+import { BookOpen, GraduationCap, ChevronRight, ShieldAlert } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { courseManifest, getChapterStatus, getCompletedCount, getBetaCount, getDraftCount, statusLabel, type Chapter, type SectionStatus } from '@/course/manifest';
+import { courseManifest, type Chapter } from '@/course/manifest';
 
 function getChapterEntryPath(chapter: Chapter): string {
   return chapter.sections[0]?.path || '/';
-}
-
-function ChapterStatusIcon({ status }: { status: SectionStatus }) {
-  switch (status) {
-    case 'completed':
-      return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
-    case 'beta':
-      return <FlaskConical className="w-4 h-4 text-amber-600" />;
-    case 'draft':
-    default:
-      return <Construction className="w-4 h-4 text-blue-600" />;
-  }
 }
 
 export default function HomePage() {
@@ -48,21 +36,6 @@ export default function HomePage() {
           本内容仅供教学与非商业学习使用，完整授权说明见页脚。
         </p>
 
-        {/* Progress stats */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-4 h-4" />
-            已完成 {getCompletedCount()}
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            <FlaskConical className="w-4 h-4" />
-            预览版 {getBetaCount()}
-          </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            <Construction className="w-4 h-4" />
-            制作中 {getDraftCount()}
-          </div>
-        </div>
       </section>
 
       {/* Course Directory */}
@@ -90,7 +63,6 @@ export default function HomePage() {
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 pb-2">
                     {part.chapters.map((chapter) => {
                       const entryPath = getChapterEntryPath(chapter);
-                      const chapterStatus = getChapterStatus(chapter);
 
                       return (
                         <Link
@@ -101,10 +73,6 @@ export default function HomePage() {
                           <div className="flex-grow min-w-0">
                             <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
                               {chapter.number}. {chapter.title}
-                            </div>
-                            <div className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500">
-                              <ChapterStatusIcon status={chapterStatus} />
-                              <span>{statusLabel(chapterStatus)}</span>
                             </div>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-400 flex-shrink-0 mt-1" />

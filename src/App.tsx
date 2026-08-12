@@ -1,121 +1,129 @@
-import { HashRouter, Routes, Route } from 'react-router-dom';
+﻿import { HashRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 
 // Legacy linear-regression sub-topic pages (Chapter 1)
-import OverviewPage from './pages/OverviewPage';
-import ModelPage from './pages/ModelPage';
-import CostFunctionPage from './pages/CostFunctionPage';
-import GradientDescentPage from './pages/GradientDescentPage';
-import NormalEquationPage from './pages/NormalEquationPage';
-import ProbabilisticPage from './pages/ProbabilisticPage';
-import OverfittingPage from './pages/OverfittingPage';
+const OverviewPage = lazy(() => import('./pages/OverviewPage'));
+const ModelPage = lazy(() => import('./pages/ModelPage'));
+const CostFunctionPage = lazy(() => import('./pages/CostFunctionPage'));
+const GradientDescentPage = lazy(() => import('./pages/GradientDescentPage'));
+const NormalEquationPage = lazy(() => import('./pages/NormalEquationPage'));
+const ProbabilisticPage = lazy(() => import('./pages/ProbabilisticPage'));
+const OverfittingPage = lazy(() => import('./pages/OverfittingPage'));
 
 // Chapter 2 pages
-import Chapter02OverviewPage from './pages/chapters/chapter02/OverviewPage';
-import Chapter02ModelPage from './pages/chapters/chapter02/ModelPage';
-import Chapter02CostFunctionPage from './pages/chapters/chapter02/CostFunctionPage';
-import Chapter02GradientDescentPage from './pages/chapters/chapter02/GradientDescentPage';
-import Chapter02PerceptronPage from './pages/chapters/chapter02/PerceptronPage';
-import Chapter02MulticlassPage from './pages/chapters/chapter02/MulticlassPage';
-import Chapter02NewtonPage from './pages/chapters/chapter02/NewtonPage';
+const Chapter02OverviewPage = lazy(() => import('./pages/chapters/chapter02/OverviewPage'));
+const Chapter02ModelPage = lazy(() => import('./pages/chapters/chapter02/ModelPage'));
+const Chapter02CostFunctionPage = lazy(() => import('./pages/chapters/chapter02/CostFunctionPage'));
+const Chapter02GradientDescentPage = lazy(() => import('./pages/chapters/chapter02/GradientDescentPage'));
+const Chapter02PerceptronPage = lazy(() => import('./pages/chapters/chapter02/PerceptronPage'));
+const Chapter02MulticlassPage = lazy(() => import('./pages/chapters/chapter02/MulticlassPage'));
+const Chapter02NewtonPage = lazy(() => import('./pages/chapters/chapter02/NewtonPage'));
 
 // Chapter 3 pages
-import Chapter03OverviewPage from './pages/chapters/chapter03/OverviewPage';
-import Chapter03ExponentialFamilyPage from './pages/chapters/chapter03/ExponentialFamilyPage';
-import Chapter03BuildingGLMPage from './pages/chapters/chapter03/BuildingGLMPage';
-import Chapter03OLSasGLMPage from './pages/chapters/chapter03/OLSasGLMPage';
-import Chapter03LogisticAsGLMPage from './pages/chapters/chapter03/LogisticAsGLMPage';
-import Chapter03SoftmaxAsGLMPage from './pages/chapters/chapter03/SoftmaxAsGLMPage';
-import Chapter03SummaryPage from './pages/chapters/chapter03/SummaryPage';
+const Chapter03OverviewPage = lazy(() => import('./pages/chapters/chapter03/OverviewPage'));
+const Chapter03ExponentialFamilyPage = lazy(() => import('./pages/chapters/chapter03/ExponentialFamilyPage'));
+const Chapter03BuildingGLMPage = lazy(() => import('./pages/chapters/chapter03/BuildingGLMPage'));
+const Chapter03OLSasGLMPage = lazy(() => import('./pages/chapters/chapter03/OLSasGLMPage'));
+const Chapter03LogisticAsGLMPage = lazy(() => import('./pages/chapters/chapter03/LogisticAsGLMPage'));
+const Chapter03SoftmaxAsGLMPage = lazy(() => import('./pages/chapters/chapter03/SoftmaxAsGLMPage'));
+const Chapter03SummaryPage = lazy(() => import('./pages/chapters/chapter03/SummaryPage'));
 
 // Chapter 4 pages
-import Chapter04OverviewPage from './pages/chapters/chapter04/OverviewPage';
-import Chapter04GenerativeVsDiscriminativePage from './pages/chapters/chapter04/GenerativeVsDiscriminativePage';
-import Chapter04GaussianDiscriminantAnalysisPage from './pages/chapters/chapter04/GaussianDiscriminantAnalysisPage';
-import Chapter04NaiveBayesPage from './pages/chapters/chapter04/NaiveBayesPage';
+const Chapter04OverviewPage = lazy(() => import('./pages/chapters/chapter04/OverviewPage'));
+const Chapter04GenerativeVsDiscriminativePage = lazy(() => import('./pages/chapters/chapter04/GenerativeVsDiscriminativePage'));
+const Chapter04GaussianDiscriminantAnalysisPage = lazy(() => import('./pages/chapters/chapter04/GaussianDiscriminantAnalysisPage'));
+const Chapter04NaiveBayesPage = lazy(() => import('./pages/chapters/chapter04/NaiveBayesPage'));
 
 // Chapter 5 pages
-import Chapter05OverviewPage from './pages/chapters/chapter05/OverviewPage';
-import Chapter05FeatureMappingPage from './pages/chapters/chapter05/FeatureMappingPage';
-import Chapter05LMSInFeatureSpacePage from './pages/chapters/chapter05/LMSInFeatureSpacePage';
-import Chapter05KernelTrickPage from './pages/chapters/chapter05/KernelTrickPage';
-import Chapter05KernelPropertiesPage from './pages/chapters/chapter05/KernelPropertiesPage';
+const Chapter05OverviewPage = lazy(() => import('./pages/chapters/chapter05/OverviewPage'));
+const Chapter05FeatureMappingPage = lazy(() => import('./pages/chapters/chapter05/FeatureMappingPage'));
+const Chapter05LMSInFeatureSpacePage = lazy(() => import('./pages/chapters/chapter05/LMSInFeatureSpacePage'));
+const Chapter05KernelTrickPage = lazy(() => import('./pages/chapters/chapter05/KernelTrickPage'));
+const Chapter05KernelPropertiesPage = lazy(() => import('./pages/chapters/chapter05/KernelPropertiesPage'));
 
 // Chapter 6 pages
-import Chapter06OverviewPage from './pages/chapters/chapter06/OverviewPage';
-import Chapter06MarginIntuitionPage from './pages/chapters/chapter06/MarginIntuitionPage';
-import Chapter06SVMTheoryPage from './pages/chapters/chapter06/SVMTheoryPage';
+const Chapter06OverviewPage = lazy(() => import('./pages/chapters/chapter06/OverviewPage'));
+const Chapter06MarginIntuitionPage = lazy(() => import('./pages/chapters/chapter06/MarginIntuitionPage'));
+const Chapter06SVMTheoryPage = lazy(() => import('./pages/chapters/chapter06/SVMTheoryPage'));
 
 // Chapter 7 pages
-import Chapter07OverviewPage from './pages/chapters/chapter07/OverviewPage';
-import Chapter07NonlinearSupervisedLearningPage from './pages/chapters/chapter07/NonlinearSupervisedLearningPage';
-import Chapter07NeuralNetworksPage from './pages/chapters/chapter07/NeuralNetworksPage';
-import Chapter07ModernNNModulesPage from './pages/chapters/chapter07/ModernNNModulesPage';
-import Chapter07BackpropagationPage from './pages/chapters/chapter07/BackpropagationPage';
-import Chapter07VectorizationPage from './pages/chapters/chapter07/VectorizationPage';
+const Chapter07OverviewPage = lazy(() => import('./pages/chapters/chapter07/OverviewPage'));
+const Chapter07NonlinearSupervisedLearningPage = lazy(() => import('./pages/chapters/chapter07/NonlinearSupervisedLearningPage'));
+const Chapter07NeuralNetworksPage = lazy(() => import('./pages/chapters/chapter07/NeuralNetworksPage'));
+const Chapter07ModernNNModulesPage = lazy(() => import('./pages/chapters/chapter07/ModernNNModulesPage'));
+const Chapter07BackpropagationPage = lazy(() => import('./pages/chapters/chapter07/BackpropagationPage'));
+const Chapter07VectorizationPage = lazy(() => import('./pages/chapters/chapter07/VectorizationPage'));
 
 // Chapter 8 pages
-import Chapter08OverviewPage from './pages/chapters/chapter08/OverviewPage';
-import Chapter08BiasVariancePage from './pages/chapters/chapter08/BiasVariancePage';
-import Chapter08DoubleDescentPage from './pages/chapters/chapter08/DoubleDescentPage';
-import Chapter08SampleComplexityPage from './pages/chapters/chapter08/SampleComplexityPage';
+const Chapter08OverviewPage = lazy(() => import('./pages/chapters/chapter08/OverviewPage'));
+const Chapter08BiasVariancePage = lazy(() => import('./pages/chapters/chapter08/BiasVariancePage'));
+const Chapter08DoubleDescentPage = lazy(() => import('./pages/chapters/chapter08/DoubleDescentPage'));
+const Chapter08SampleComplexityPage = lazy(() => import('./pages/chapters/chapter08/SampleComplexityPage'));
 
 // Chapter 9 pages
-import Chapter09OverviewPage from './pages/chapters/chapter09/OverviewPage';
-import Chapter09RegularizationPage from './pages/chapters/chapter09/RegularizationPage';
-import Chapter09ImplicitRegularizationPage from './pages/chapters/chapter09/ImplicitRegularizationPage';
-import Chapter09CrossValidationPage from './pages/chapters/chapter09/CrossValidationPage';
-import Chapter09BayesianRegularizationPage from './pages/chapters/chapter09/BayesianRegularizationPage';
+const Chapter09OverviewPage = lazy(() => import('./pages/chapters/chapter09/OverviewPage'));
+const Chapter09RegularizationPage = lazy(() => import('./pages/chapters/chapter09/RegularizationPage'));
+const Chapter09ImplicitRegularizationPage = lazy(() => import('./pages/chapters/chapter09/ImplicitRegularizationPage'));
+const Chapter09CrossValidationPage = lazy(() => import('./pages/chapters/chapter09/CrossValidationPage'));
+const Chapter09BayesianRegularizationPage = lazy(() => import('./pages/chapters/chapter09/BayesianRegularizationPage'));
 
 // Chapter 10 pages
-import Chapter10OverviewPage from './pages/chapters/chapter10/OverviewPage';
-import Chapter10KMeansPage from './pages/chapters/chapter10/KMeansPage';
+const Chapter10OverviewPage = lazy(() => import('./pages/chapters/chapter10/OverviewPage'));
+const Chapter10KMeansPage = lazy(() => import('./pages/chapters/chapter10/KMeansPage'));
 
 // Chapter 11 pages
-import Chapter11OverviewPage from './pages/chapters/chapter11/OverviewPage';
-import Chapter11GaussianMixtureEMPage from './pages/chapters/chapter11/GaussianMixtureEMPage';
-import Chapter11JensenInequalityPage from './pages/chapters/chapter11/JensenInequalityPage';
-import Chapter11GeneralEMPage from './pages/chapters/chapter11/GeneralEMPage';
-import Chapter11GMMRevisitedPage from './pages/chapters/chapter11/GMMRevisitedPage';
-import Chapter11VariationalInferencePage from './pages/chapters/chapter11/VariationalInferencePage';
+const Chapter11OverviewPage = lazy(() => import('./pages/chapters/chapter11/OverviewPage'));
+const Chapter11GaussianMixtureEMPage = lazy(() => import('./pages/chapters/chapter11/GaussianMixtureEMPage'));
+const Chapter11JensenInequalityPage = lazy(() => import('./pages/chapters/chapter11/JensenInequalityPage'));
+const Chapter11GeneralEMPage = lazy(() => import('./pages/chapters/chapter11/GeneralEMPage'));
+const Chapter11GMMRevisitedPage = lazy(() => import('./pages/chapters/chapter11/GMMRevisitedPage'));
+const Chapter11VariationalInferencePage = lazy(() => import('./pages/chapters/chapter11/VariationalInferencePage'));
 
 // Chapter 12 pages
-import Chapter12OverviewPage from './pages/chapters/chapter12/OverviewPage';
-import Chapter12PCAPage from './pages/chapters/chapter12/PCAPage';
+const Chapter12OverviewPage = lazy(() => import('./pages/chapters/chapter12/OverviewPage'));
+const Chapter12PCAPage = lazy(() => import('./pages/chapters/chapter12/PCAPage'));
 
 // Chapter 13 pages
-import Chapter13OverviewPage from './pages/chapters/chapter13/OverviewPage';
-import Chapter13ICAPage from './pages/chapters/chapter13/ICAPage';
+const Chapter13OverviewPage = lazy(() => import('./pages/chapters/chapter13/OverviewPage'));
+const Chapter13ICAPage = lazy(() => import('./pages/chapters/chapter13/ICAPage'));
 
 // Chapter 14 pages
-import Chapter14OverviewPage from './pages/chapters/chapter14/OverviewPage';
-import Chapter14PretrainingAdaptationPage from './pages/chapters/chapter14/PretrainingAdaptationPage';
-import Chapter14ComputerVisionPretrainingPage from './pages/chapters/chapter14/ComputerVisionPretrainingPage';
-import Chapter14LargeLanguageModelsPage from './pages/chapters/chapter14/LargeLanguageModelsPage';
+const Chapter14OverviewPage = lazy(() => import('./pages/chapters/chapter14/OverviewPage'));
+const Chapter14PretrainingAdaptationPage = lazy(() => import('./pages/chapters/chapter14/PretrainingAdaptationPage'));
+const Chapter14ComputerVisionPretrainingPage = lazy(() => import('./pages/chapters/chapter14/ComputerVisionPretrainingPage'));
+const Chapter14LargeLanguageModelsPage = lazy(() => import('./pages/chapters/chapter14/LargeLanguageModelsPage'));
 
 // Chapter 15 pages
-import Chapter15OverviewPage from './pages/chapters/chapter15/OverviewPage';
-import Chapter15MDPPage from './pages/chapters/chapter15/MDPPage';
-import Chapter15ValuePolicyIterationPage from './pages/chapters/chapter15/ValuePolicyIterationPage';
-import Chapter15LearningMDPPage from './pages/chapters/chapter15/LearningMDPPage';
-import Chapter15ContinuousStateMDPPage from './pages/chapters/chapter15/ContinuousStateMDPPage';
-import Chapter15ValuePolicyConnectionPage from './pages/chapters/chapter15/ValuePolicyConnectionPage';
+const Chapter15OverviewPage = lazy(() => import('./pages/chapters/chapter15/OverviewPage'));
+const Chapter15MDPPage = lazy(() => import('./pages/chapters/chapter15/MDPPage'));
+const Chapter15ValuePolicyIterationPage = lazy(() => import('./pages/chapters/chapter15/ValuePolicyIterationPage'));
+const Chapter15LearningMDPPage = lazy(() => import('./pages/chapters/chapter15/LearningMDPPage'));
+const Chapter15ContinuousStateMDPPage = lazy(() => import('./pages/chapters/chapter15/ContinuousStateMDPPage'));
+const Chapter15ValuePolicyConnectionPage = lazy(() => import('./pages/chapters/chapter15/ValuePolicyConnectionPage'));
 
 // Chapter 16 pages
-import Chapter16FiniteHorizonMDPPage from './pages/chapters/chapter16/FiniteHorizonMDPPage';
-import Chapter16LQRPage from './pages/chapters/chapter16/LQRPage';
-import Chapter16NonlinearToLQRPage from './pages/chapters/chapter16/NonlinearToLQRPage';
-import Chapter16LQGPage from './pages/chapters/chapter16/LQGPage';
+const Chapter16FiniteHorizonMDPPage = lazy(() => import('./pages/chapters/chapter16/FiniteHorizonMDPPage'));
+const Chapter16LQRPage = lazy(() => import('./pages/chapters/chapter16/LQRPage'));
+const Chapter16NonlinearToLQRPage = lazy(() => import('./pages/chapters/chapter16/NonlinearToLQRPage'));
+const Chapter16LQGPage = lazy(() => import('./pages/chapters/chapter16/LQGPage'));
 
 // Chapter 17 pages
-import Chapter17PolicyGradientPage from './pages/chapters/chapter17/PolicyGradientPage';
+const Chapter17PolicyGradientPage = lazy(() => import('./pages/chapters/chapter17/PolicyGradientPage'));
 
 function App() {
   return (
     <HashRouter>
-      <Routes>
-        <Route element={<Layout />}>
+      <Suspense
+        fallback={(
+          <div className="flex min-h-[50vh] items-center justify-center text-sm text-gray-500" role="status">
+            正在加载课程内容…
+          </div>
+        )}
+      >
+        <Routes>
+          <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
 
           {/* Chapter 1: linear regression deep-dive pages */}
@@ -226,8 +234,9 @@ function App() {
 
           {/* Chapter 17 routes */}
           <Route path="/ch17/policy-gradient" element={<Chapter17PolicyGradientPage />} />
-        </Route>
-      </Routes>
+          </Route>
+        </Routes>
+      </Suspense>
     </HashRouter>
   );
 }

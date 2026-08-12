@@ -332,7 +332,7 @@ function CrossValidationDemo() {
               className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {revealedTestConfig === configKey
-                ? '该配置已完成独立测试'
+                ? '该配置已通过独立测试'
                 : revealedTestConfig === null
                   ? '锁定当前配置并查看一次测试误差'
                   : '测试集已使用，请勿再次调参评估'}

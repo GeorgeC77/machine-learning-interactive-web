@@ -20,4 +20,11 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      // shadcn UI primitives intentionally export variants and hooks beside components.
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

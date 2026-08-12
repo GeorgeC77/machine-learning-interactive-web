@@ -22,8 +22,7 @@ export default function MulticlassPage() {
   const [z2, setZ2] = useState(0.0);
   const [z3, setZ3] = useState(-0.5);
 
-  const scores = [z1, z2, z3];
-  const probs = useMemo(() => softmax(scores), [z1, z2, z3]);
+  const probs = useMemo(() => softmax([z1, z2, z3]), [z1, z2, z3]);
   const predictedClass = probs.indexOf(Math.max(...probs));
 
   return (

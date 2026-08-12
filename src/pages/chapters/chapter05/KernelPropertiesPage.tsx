@@ -155,17 +155,16 @@ function RBFKernelDemo() {
   const xMax = 3;
   const center = 0;
 
-  const rbf = (x: number) => Math.exp(-Math.pow(x - center, 2) / (2 * sigma * sigma));
-
   const steps = 200;
   const points = useMemo(() => {
     const pts: { x: number; y: number }[] = [];
     for (let i = 0; i <= steps; i++) {
       const x = xMin + (i / steps) * (xMax - xMin);
-      pts.push({ x, y: rbf(x) });
+      const y = Math.exp(-Math.pow(x - center, 2) / (2 * sigma * sigma));
+      pts.push({ x, y });
     }
     return pts;
-  }, [sigma]);
+  }, [center, sigma, steps, xMax, xMin]);
 
   const xScale = (x: number) => padding.left + ((x - xMin) / (xMax - xMin)) * innerW;
   const yScale = (y: number) => padding.top + innerH - y * innerH;
