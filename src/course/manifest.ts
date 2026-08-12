@@ -695,7 +695,7 @@ export const courseManifest: Part[] = [
             id: "ch17-policy-gradient",
             title: "17.1 策略梯度与 REINFORCE",
             path: "/ch17/policy-gradient",
-            status: "draft",
+            status: "completed",
             description: "直接优化参数化策略。",
           },
         ],
